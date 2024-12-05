@@ -1,4 +1,4 @@
-import { FormulaBlock as IFormulaBlock } from '@/types/article';
+import { IFormulaBlock } from '@/types/article';
 import 'katex/dist/katex.min.css';
 import { InlineMath } from 'react-katex';
 

@@ -1,4 +1,4 @@
-import { ImageBlock as IImageBlock } from '@/types/article';
+import { IImageBlock } from '@/types/article';
 import Image from 'next/image';
 
 interface ImageBlockProps {

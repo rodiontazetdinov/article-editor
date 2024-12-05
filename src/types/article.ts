@@ -1,37 +1,37 @@
-export type BlockType = 'H1' | 'P' | 'RENDER' | 'FORMULA' | 'IMAGE';
+export type TBlockType = 'H1' | 'P' | 'RENDER' | 'FORMULA' | 'IMAGE';
 
-export interface BaseBlock {
+export interface IBaseBlock {
   id: string;
   indent: number;
-  type: BlockType;
+  type: TBlockType;
   modified: string;
   $new?: boolean;
 }
 
-export interface TextBlock extends BaseBlock {
+export interface ITextBlock extends IBaseBlock {
   type: 'H1' | 'P';
   content: string;
 }
 
-export interface FormulaBlock extends BaseBlock {
+export interface IFormulaBlock extends IBaseBlock {
   type: 'FORMULA';
   source: 'latex';
   content: string;
 }
 
-export interface ImageBlock extends BaseBlock {
+export interface IImageBlock extends IBaseBlock {
   type: 'IMAGE';
   variant: string;
   images: string[];
   src: string;
 }
 
-export interface RenderBlock extends BaseBlock {
+export interface IRenderBlock extends IBaseBlock {
   type: 'RENDER';
 }
 
-export type ArticleBlock = TextBlock | FormulaBlock | ImageBlock | RenderBlock;
+export type TArticleBlock = ITextBlock | IFormulaBlock | IImageBlock | IRenderBlock;
 
-export interface Article {
-  blocks: ArticleBlock[];
+export interface IArticle {
+  blocks: TArticleBlock[];
 } 

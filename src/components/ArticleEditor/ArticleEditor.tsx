@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Article, ArticleBlock } from '@/types/article';
+import type { IArticle, TArticleBlock, ITextBlock, IFormulaBlock, IImageBlock, IRenderBlock } from '@/types/article';
 import { nanoid } from 'nanoid';
 import { TextBlock } from '../blocks/TextBlock';
 import { FormulaBlock } from '../blocks/FormulaBlock';
@@ -9,14 +9,14 @@ import { ImageBlock } from '../blocks/ImageBlock';
 import { BlockWrapper } from '../blocks/BlockWrapper';
 
 interface ArticleEditorProps {
-  initialData?: Article;
-  onChange?: (article: Article) => void;
+  initialData?: IArticle;
+  onChange?: (article: IArticle) => void;
 }
 
 export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => {
-  const [blocks, setBlocks] = useState<ArticleBlock[]>(initialData?.blocks || []);
+  const [blocks, setBlocks] = useState<TArticleBlock[]>(initialData?.blocks || []);
 
-  const addBlock = (type: ArticleBlock['type']) => {
+  const addBlock = (type: TArticleBlock['type']) => {
     const baseBlock = {
       id: nanoid(10),
       indent: 0,
@@ -25,16 +25,16 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
       $new: true,
     };
 
-    let newBlock: ArticleBlock;
+    let newBlock: TArticleBlock;
     
     if (type === 'H1' || type === 'P') {
-      newBlock = { ...baseBlock, type, content: '' } as TextBlock;
+      newBlock = { ...baseBlock, type, content: '' } as ITextBlock;
     } else if (type === 'FORMULA') {
-      newBlock = { ...baseBlock, type, source: 'latex', content: '' } as FormulaBlock;
+      newBlock = { ...baseBlock, type, source: 'latex', content: '' } as IFormulaBlock;
     } else if (type === 'IMAGE') {
-      newBlock = { ...baseBlock, type, variant: '1', images: [], src: '' } as ImageBlock;
+      newBlock = { ...baseBlock, type, variant: '1', images: [], src: '' } as IImageBlock;
     } else {
-      newBlock = { ...baseBlock, type } as RenderBlock;
+      newBlock = { ...baseBlock, type } as IRenderBlock;
     }
 
     const newBlocks = [...blocks, newBlock];
@@ -42,11 +42,11 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     onChange?.({ blocks: newBlocks });
   };
 
-  const updateBlock = (id: string, updates: Partial<ArticleBlock>) => {
+  const updateBlock = (id: string, updates: Partial<TArticleBlock>) => {
     const newBlocks = blocks.map(block => {
       if (block.id !== id) return block;
       const updatedBlock = { ...block, ...updates, modified: new Date().toISOString() };
-      return updatedBlock as ArticleBlock;
+      return updatedBlock as TArticleBlock;
     });
     setBlocks(newBlocks);
     onChange?.({ blocks: newBlocks });
@@ -58,7 +58,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     onChange?.({ blocks: newBlocks });
   };
 
-  const renderBlock = (block: ArticleBlock) => {
+  const renderBlock = (block: TArticleBlock) => {
     switch (block.type) {
       case 'H1':
       case 'P':
@@ -79,6 +79,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
           <BlockWrapper
             key={block.id}
             block={block}
+            onUpdate={(updates) => updateBlock(block.id, updates)}
             onDelete={() => deleteBlock(block.id)}
           >
             {renderBlock(block)}

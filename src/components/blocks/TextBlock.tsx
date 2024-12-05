@@ -1,4 +1,4 @@
-import { TextBlock as ITextBlock } from '@/types/article';
+import { ITextBlock } from '@/types/article';
 
 interface TextBlockProps {
   block: ITextBlock;

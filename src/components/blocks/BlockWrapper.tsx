@@ -1,8 +1,9 @@
-import { ArticleBlock } from '@/types/article';
+import { TArticleBlock } from '@/types/article';
 import { useState } from 'react';
 
 interface BlockWrapperProps {
-  block: ArticleBlock;
+  block: TArticleBlock;
+  onUpdate: (updates: Partial<TArticleBlock>) => void;
   onDelete: () => void;
   children: React.ReactNode;
 }
