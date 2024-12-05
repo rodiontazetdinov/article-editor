@@ -74,7 +74,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
-      <div className="space-y-4">
+      <div className="space-y-6">
         {blocks.map((block) => (
           <BlockWrapper
             key={block.id}
@@ -86,31 +86,35 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
           </BlockWrapper>
         ))}
       </div>
-      <div className="mt-4 space-x-2">
-        <button
-          onClick={() => addBlock('H1')}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Добавить заголовок
-        </button>
-        <button
-          onClick={() => addBlock('P')}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Добавить параграф
-        </button>
-        <button
-          onClick={() => addBlock('FORMULA')}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Добавить формулу
-        </button>
-        <button
-          onClick={() => addBlock('IMAGE')}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Добавить изображение
-        </button>
+      
+      <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">Добавить блок</h3>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => addBlock('H1')}
+            className="bg-white border border-blue-500 text-blue-500 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            Заголовок
+          </button>
+          <button
+            onClick={() => addBlock('P')}
+            className="bg-white border border-blue-500 text-blue-500 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            Параграф
+          </button>
+          <button
+            onClick={() => addBlock('FORMULA')}
+            className="bg-white border border-blue-500 text-blue-500 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            Формула
+          </button>
+          <button
+            onClick={() => addBlock('IMAGE')}
+            className="bg-white border border-blue-500 text-blue-500 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            Изображение
+          </button>
+        </div>
       </div>
     </div>
   );
