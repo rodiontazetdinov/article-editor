@@ -3,7 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Superscript from '@tiptap/extension-superscript';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 
 interface TextBlockProps {
   block: ITextBlock;
@@ -14,10 +14,17 @@ interface TextBlockProps {
     underline: boolean;
     superscript: boolean;
   };
+  onActiveFormatsChange?: (formats: NonNullable<TextBlockProps['activeFormats']>) => void;
   onEnterPress?: () => void;
 }
 
-export const TextBlock = ({ block, onUpdate, activeFormats, onEnterPress }: TextBlockProps) => {
+export const TextBlock = ({ 
+  block, 
+  onUpdate, 
+  activeFormats, 
+  onActiveFormatsChange,
+  onEnterPress 
+}: TextBlockProps) => {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -41,8 +48,25 @@ export const TextBlock = ({ block, onUpdate, activeFormats, onEnterPress }: Text
     onUpdate: ({ editor }) => {
       const content = editor.getHTML() + '<!---->'; // Добавляем комментарий для совместимости
       onUpdate({ content });
+      updateActiveFormats();
+    },
+    onSelectionUpdate: () => {
+      updateActiveFormats();
     },
   });
+
+  const updateActiveFormats = useCallback(() => {
+    if (!editor || !onActiveFormatsChange) return;
+
+    const formats = {
+      bold: editor.isActive('bold'),
+      italic: editor.isActive('italic'),
+      underline: editor.isActive('underline'),
+      superscript: editor.isActive('superscript')
+    };
+
+    onActiveFormatsChange(formats);
+  }, [editor, onActiveFormatsChange]);
 
   // Синхронизируем внешние изменения с редактором
   useEffect(() => {
@@ -55,10 +79,18 @@ export const TextBlock = ({ block, onUpdate, activeFormats, onEnterPress }: Text
   useEffect(() => {
     if (!editor || !activeFormats) return;
 
-    if (activeFormats.bold) editor.commands.toggleBold();
-    if (activeFormats.italic) editor.commands.toggleItalic();
-    if (activeFormats.underline) editor.commands.toggleUnderline();
-    if (activeFormats.superscript) editor.commands.toggleSuperscript();
+    if (activeFormats.bold !== editor.isActive('bold')) {
+      editor.commands.toggleBold();
+    }
+    if (activeFormats.italic !== editor.isActive('italic')) {
+      editor.commands.toggleItalic();
+    }
+    if (activeFormats.underline !== editor.isActive('underline')) {
+      editor.commands.toggleUnderline();
+    }
+    if (activeFormats.superscript !== editor.isActive('superscript')) {
+      editor.commands.toggleSuperscript();
+    }
   }, [activeFormats, editor]);
 
   const getFontSize = () => {

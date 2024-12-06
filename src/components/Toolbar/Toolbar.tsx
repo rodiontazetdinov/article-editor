@@ -84,10 +84,30 @@ export const Toolbar = ({
     {
       label: 'Форматирование',
       buttons: [
-        { icon: MdFormatBold, label: 'Жирный', action: () => onFormatClick('bold'), isActive: activeFormats?.bold },
-        { icon: MdFormatItalic, label: 'Курсив', action: () => onFormatClick('italic'), isActive: activeFormats?.italic },
-        { icon: MdFormatUnderlined, label: 'Подчеркнутый', action: () => onFormatClick('underline'), isActive: activeFormats?.underline },
-        { icon: MdSuperscript, label: 'Степень', action: () => onFormatClick('superscript'), isActive: activeFormats?.superscript }
+        { 
+          icon: MdFormatBold, 
+          label: 'Жирный', 
+          action: () => onFormatClick('bold'),
+          isActive: activeFormats?.bold 
+        },
+        { 
+          icon: MdFormatItalic, 
+          label: 'Курсив', 
+          action: () => onFormatClick('italic'),
+          isActive: activeFormats?.italic 
+        },
+        { 
+          icon: MdFormatUnderlined, 
+          label: 'Подчеркнутый', 
+          action: () => onFormatClick('underline'),
+          isActive: activeFormats?.underline 
+        },
+        { 
+          icon: MdSuperscript, 
+          label: 'Степень', 
+          action: () => onFormatClick('superscript'),
+          isActive: activeFormats?.superscript 
+        }
       ]
     },
     {
@@ -122,8 +142,7 @@ export const Toolbar = ({
                     onClick={button.action}
                     disabled={button.isActive && !activeFormats}
                     className={`p-1.5 rounded transition-colors relative group/button
-                      ${button.isActive && !activeFormats ? 'opacity-50 cursor-not-allowed' : ''}
-                      ${button.isActive && activeFormats ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}
+                      ${button.isActive ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}
                     `}
                     title={button.label}
                   >

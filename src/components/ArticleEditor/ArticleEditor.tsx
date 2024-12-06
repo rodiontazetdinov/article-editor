@@ -26,7 +26,12 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   const [blocks, setBlocks] = useState<TArticleBlock[]>(initialData?.blocks || []);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [history, setHistory] = useState<{ past: TArticleBlock[][]; future: TArticleBlock[][] }>({ past: [], future: [] });
-  const [activeFormats, setActiveFormats] = useState<FormatState>({
+  const [activeFormats, setActiveFormats] = useState<{
+    bold: boolean;
+    italic: boolean;
+    underline: boolean;
+    superscript: boolean;
+  }>({
     bold: false,
     italic: false,
     underline: false,
@@ -139,26 +144,14 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   };
 
   const handleFormatClick = (format: 'bold' | 'italic' | 'underline' | 'superscript') => {
-    if (!selectedBlockId) return;
-    
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      setActiveFormats(prev => ({ ...prev, [format]: !prev[format] }));
-      return;
-    }
+    setActiveFormats(prev => ({
+      ...prev,
+      [format]: !prev[format]
+    }));
+  };
 
-    const range = selection.getRangeAt(0);
-    if (range.collapsed) {
-      setActiveFormats(prev => ({ ...prev, [format]: !prev[format] }));
-      return;
-    }
-
-    document.execCommand(format === 'superscript' ? 'superscript' : format, false);
-
-    const blockElement = document.getElementById(selectedBlockId);
-    if (blockElement) {
-      blockElement.focus();
-    }
+  const handleActiveFormatsChange = (formats: typeof activeFormats) => {
+    setActiveFormats(formats);
   };
 
   const handleListClick = (type: 'bullet' | 'number') => {
@@ -195,7 +188,15 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
       case 'H3':
       case 'P':
       case 'CAPTION':
-        return <TextBlock block={block} onUpdate={(updates) => updateBlock(block.id, updates)} />;
+        return (
+          <TextBlock 
+            block={block} 
+            onUpdate={(updates) => updateBlock(block.id, updates)}
+            activeFormats={selectedBlockId === block.id ? activeFormats : undefined}
+            onActiveFormatsChange={handleActiveFormatsChange}
+            onEnterPress={() => addBlock('P', block.id)}
+          />
+        );
       case 'FORMULA':
         return <FormulaBlock block={block} onUpdate={(updates) => updateBlock(block.id, updates)} />;
       case 'IMAGE':
@@ -218,6 +219,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
         canRedo={history.future.length > 0}
         onUndo={undo}
         onRedo={redo}
+        activeFormats={activeFormats}
       />
       <div className="p-4">
         <div>
