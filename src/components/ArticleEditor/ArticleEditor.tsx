@@ -177,19 +177,27 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   const handleFormulaClick = () => {
     if (!selectedBlockId) return;
     
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
+    const blockElement = document.querySelector(`[data-block-id="${selectedBlockId}"]`);
+    if (!blockElement) return;
 
-    const range = selection.getRangeAt(0);
-    const selectedText = range.toString();
+    const editor = (blockElement as any)._editor;
+    if (!editor) return;
+
+    const selection = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(selection.from, selection.to);
     
-    if (selectedText) {
-      const formula = `<formula inline="true" source="latex">${selectedText}</formula>`;
-      document.execCommand('insertHTML', false, formula);
-    } else {
-      const formula = '<formula inline="true" source="latex">формула</formula>';
-      document.execCommand('insertHTML', false, formula);
-    }
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: 'formula',
+        attrs: {
+          inline: 'true',
+          source: 'latex',
+          content: selectedText || 'формула'
+        }
+      })
+      .run();
   };
 
   const renderBlock = (block: TArticleBlock) => {
