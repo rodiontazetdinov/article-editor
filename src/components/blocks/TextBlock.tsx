@@ -42,6 +42,13 @@ export const TextBlock = ({
           onEnterPress?.();
           return true;
         }
+        if (event.key === 'Escape') {
+          editor.commands.unsetSuperscript();
+          editor.commands.unsetBold();
+          editor.commands.unsetItalic();
+          editor.commands.unsetUnderline();
+          return true;
+        }
         return false;
       },
     },
