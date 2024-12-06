@@ -16,17 +16,23 @@ export const AddBlockButton = ({ onAdd }: AddBlockButtonProps) => {
   ];
 
   return (
-    <div className="h-2 group/add relative -my-1">
-      <div className="absolute inset-x-0 h-4 -top-2 flex items-center justify-center opacity-0 group-hover/add:opacity-100 transition-opacity">
+    <div 
+      className="h-6 group/add relative -my-1"
+      onMouseLeave={() => setIsExpanded(false)}
+    >
+      <div className="absolute left-1/2 w-px h-full bg-blue-200 -translate-x-1/2 group-hover/add:bg-blue-400 transition-colors" />
+      <div className="absolute inset-x-0 h-6 flex items-center justify-center opacity-40 hover:opacity-100 transition-opacity">
         {!isExpanded ? (
           <button
             onClick={() => setIsExpanded(true)}
-            className="w-6 h-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center shadow-sm transition-all hover:scale-110 text-sm"
+            className="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center shadow-sm transition-all hover:scale-110 text-lg relative z-10"
           >
             +
           </button>
         ) : (
-          <div className="flex gap-1 bg-white rounded-full shadow-lg p-1 transition-all">
+          <div 
+            className="flex gap-1 bg-white rounded-full shadow-lg p-1.5 transition-all"
+          >
             {blockTypes.map(({ type, icon, label }) => (
               <button
                 key={type}
@@ -34,11 +40,11 @@ export const AddBlockButton = ({ onAdd }: AddBlockButtonProps) => {
                   onAdd(type);
                   setIsExpanded(false);
                 }}
-                className="w-6 h-6 rounded-full bg-gray-50 hover:bg-blue-500 text-gray-700 hover:text-white flex items-center justify-center transition-colors group/button relative"
+                className="w-8 h-8 rounded-full bg-gray-50 hover:bg-blue-500 text-gray-700 hover:text-white flex items-center justify-center transition-colors group/button relative"
                 title={label}
               >
-                <span className="text-xs">{icon}</span>
-                <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 scale-0 group-hover/button:scale-100 bg-gray-800 text-white text-xs py-0.5 px-2 rounded whitespace-nowrap transition-transform">
+                <span className="text-base">{icon}</span>
+                <span className="absolute top-full mt-1 left-1/2 -translate-x-1/2 scale-0 group-hover/button:scale-100 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap transition-transform">
                   {label}
                 </span>
               </button>

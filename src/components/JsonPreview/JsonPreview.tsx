@@ -15,7 +15,7 @@ export const JsonPreview = ({ blocks }: JsonPreviewProps) => {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-full shadow-lg transition-all hover:scale-105"
@@ -25,7 +25,7 @@ export const JsonPreview = ({ blocks }: JsonPreviewProps) => {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
             <div className="p-4 border-b flex justify-between items-center">
               <h2 className="text-lg font-semibold">Предпросмотр JSON</h2>
@@ -52,6 +52,6 @@ export const JsonPreview = ({ blocks }: JsonPreviewProps) => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }; 

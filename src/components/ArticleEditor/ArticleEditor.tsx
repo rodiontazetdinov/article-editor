@@ -10,6 +10,8 @@ import { BlockWrapper } from '../blocks/BlockWrapper';
 import { AddBlockButton } from '../blocks/AddBlockButton';
 import { Toolbar } from '../Toolbar/Toolbar';
 import { JsonPreview } from '../JsonPreview/JsonPreview';
+import { ArticlePreview } from '../ArticlePreview/ArticlePreview';
+import { MdPreview, MdClose } from 'react-icons/md';
 
 interface ArticleEditorProps {
   initialData?: IArticle;
@@ -38,6 +40,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     underline: false,
     superscript: false
   });
+  const [showPreview, setShowPreview] = useState(false);
 
   const updateHistory = useCallback((newBlocks: TArticleBlock[]) => {
     setHistory(prev => ({
@@ -237,78 +240,103 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <Toolbar
-        onBlockTypeChange={handleBlockTypeChange}
-        onTextAlignChange={handleTextAlignChange}
-        onTextCaseChange={handleTextCaseChange}
-        onFormatClick={handleFormatClick}
-        onListClick={handleListClick}
-        onFormulaClick={handleFormulaClick}
-        canUndo={history.past.length > 0}
-        canRedo={history.future.length > 0}
-        onUndo={undo}
-        onRedo={redo}
-        activeFormats={activeFormats}
-      />
-      <div className="p-4">
-        <div>
-          {blocks.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <div className="max-w-2xl mx-auto space-y-6">
-                <div className="text-gray-500">
-                  <svg className="w-12 h-12 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <h3 className="text-lg font-medium mb-2">Начните создавать статью</h3>
-                  <p className="text-sm">Выберите тип блока, чтобы начать</p>
-                </div>
-                <div className="flex flex-wrap justify-center gap-3 px-4">
-                  <button
-                    onClick={() => addBlock('H1')}
-                    className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
-                  >
-                    <span className="text-lg font-bold text-gray-400 group-hover:text-blue-500">H1</span>
-                    <span className="text-gray-500 group-hover:text-blue-600">Заголовок</span>
-                  </button>
-                  <button
-                    onClick={() => addBlock('P')}
-                    className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
-                  >
-                    <span className="text-lg font-bold text-gray-400 group-hover:text-blue-500">¶</span>
-                    <span className="text-gray-500 group-hover:text-blue-600">Параграф</span>
-                  </button>
-                  <div className="flex items-center gap-3">
-                    <div className="w-px h-8 bg-gray-200"></div>
-                    <AddBlockButton onAdd={(type) => addBlock(type)} />
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto py-8">
+        <Toolbar
+          onBlockTypeChange={handleBlockTypeChange}
+          onTextAlignChange={handleTextAlignChange}
+          onTextCaseChange={handleTextCaseChange}
+          onFormatClick={handleFormatClick}
+          onListClick={handleListClick}
+          onFormulaClick={handleFormulaClick}
+          canUndo={history.past.length > 0}
+          canRedo={history.future.length > 0}
+          onUndo={undo}
+          onRedo={redo}
+          activeFormats={activeFormats}
+        />
+        <div className="p-4">
+          <div>
+            {blocks.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="max-w-2xl mx-auto space-y-6">
+                  <div className="text-gray-500">
+                    <svg className="w-12 h-12 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    <h3 className="text-lg font-medium mb-2">Начните создавать статью</h3>
+                    <p className="text-sm">Выберите тип блока, чтобы начать</p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-3 px-4">
+                    <button
+                      onClick={() => addBlock('H1')}
+                      className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                    >
+                      <span className="text-lg font-bold text-gray-400 group-hover:text-blue-500">H1</span>
+                      <span className="text-gray-500 group-hover:text-blue-600">Заголовок</span>
+                    </button>
+                    <button
+                      onClick={() => addBlock('P')}
+                      className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                    >
+                      <span className="text-lg font-bold text-gray-400 group-hover:text-blue-500">¶</span>
+                      <span className="text-gray-500 group-hover:text-blue-600">Параграф</span>
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="w-px h-8 bg-gray-200"></div>
+                      <AddBlockButton onAdd={(type) => addBlock(type)} />
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    Используйте панель инструментов для форматирования
                   </div>
                 </div>
-                <div className="text-sm text-gray-400">
-                  Используйте панель инструментов для форматирования
-                </div>
               </div>
-            </div>
-          ) : (
-            blocks.map((block) => (
-              <div
-                key={block.id}
-                onClick={() => setSelectedBlockId(block.id)}
-                className={`relative ${selectedBlockId === block.id ? 'ring-2 ring-blue-500 rounded-lg' : ''}`}
-              >
-                <BlockWrapper
-                  block={block}
-                  onUpdate={(updates) => updateBlock(block.id, updates)}
-                  onDelete={() => deleteBlock(block.id)}
-                  onAdd={(type) => addBlock(type, block.id)}
+            ) : (
+              blocks.map((block) => (
+                <div
+                  key={block.id}
+                  onClick={() => setSelectedBlockId(block.id)}
+                  className={`relative ${selectedBlockId === block.id ? 'ring-2 ring-blue-500 rounded-lg' : ''}`}
                 >
-                  {renderBlock(block)}
-                </BlockWrapper>
-              </div>
-            ))
-          )}
+                  <BlockWrapper
+                    block={block}
+                    onUpdate={(updates) => updateBlock(block.id, updates)}
+                    onDelete={() => deleteBlock(block.id)}
+                    onAdd={(type) => addBlock(type, block.id)}
+                  >
+                    {renderBlock(block)}
+                  </BlockWrapper>
+                </div>
+              ))
+            )}
+          </div>
         </div>
+        <div className="fixed bottom-4 right-4 z-50 flex gap-2">
+          <button
+            onClick={() => setShowPreview(true)}
+            className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-full shadow-lg transition-all hover:scale-105"
+            title="Предпросмотр статьи"
+          >
+            <MdPreview className="w-6 h-6" />
+          </button>
+          <JsonPreview blocks={blocks} />
+        </div>
+        {showPreview && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 z-50 overflow-auto">
+            <div className="bg-gray-100 rounded-lg shadow-xl w-full min-h-screen relative">
+              <button
+                onClick={() => setShowPreview(false)}
+                className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+                title="Закрыть предпросмотр"
+              >
+                <MdClose className="w-6 h-6" />
+              </button>
+              <ArticlePreview blocks={blocks} />
+            </div>
+          </div>
+        )}
       </div>
-      <JsonPreview blocks={blocks} />
     </div>
   );
 }; 
