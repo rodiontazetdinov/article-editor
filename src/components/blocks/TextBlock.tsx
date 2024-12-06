@@ -98,12 +98,12 @@ export const TextBlock = ({
       TextCase,
       BulletList.configure({
         HTMLAttributes: {
-          class: 'list-disc list-inside',
+          class: 'list-disc list-outside ml-5',
         },
       }),
       OrderedList.configure({
         HTMLAttributes: {
-          class: 'list-decimal list-inside',
+          class: 'list-decimal list-outside ml-5',
         },
       }),
       ListItem,
