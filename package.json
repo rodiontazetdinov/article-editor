@@ -9,12 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tiptap/extension-placeholder": "^2.10.3",
     "@tiptap/extension-superscript": "^2.10.3",
     "@tiptap/extension-underline": "^2.10.3",
     "@tiptap/pm": "^2.10.3",
     "@tiptap/react": "^2.10.3",
     "@tiptap/starter-kit": "^2.10.3",
     "katex": "^0.16.11",
+    "mammoth": "^1.8.0",
     "nanoid": "^5.0.9",
     "next": "14.2.18",
     "react": "^18",

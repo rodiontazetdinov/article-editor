@@ -12,6 +12,7 @@ import { Toolbar } from '../Toolbar/Toolbar';
 import { JsonPreview } from '../JsonPreview/JsonPreview';
 import { ArticlePreview } from '../ArticlePreview/ArticlePreview';
 import { MdPreview, MdClose } from 'react-icons/md';
+import { ImportDocument } from '../ImportDocument/ImportDocument';
 
 interface ArticleEditorProps {
   initialData?: IArticle;
@@ -239,9 +240,16 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     }
   };
 
+  const handleImport = (importedBlocks: TArticleBlock[]) => {
+    updateHistory([...blocks, ...importedBlocks]);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto py-8">
+        <div className="flex justify-between items-center mb-4 px-4">
+          <ImportDocument onImport={handleImport} />
+        </div>
         <Toolbar
           onBlockTypeChange={handleBlockTypeChange}
           onTextAlignChange={handleTextAlignChange}

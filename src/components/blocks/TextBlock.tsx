@@ -6,11 +6,9 @@ import Superscript from '@tiptap/extension-superscript';
 import BulletList from '@tiptap/extension-bullet-list';
 import OrderedList from '@tiptap/extension-ordered-list';
 import ListItem from '@tiptap/extension-list-item';
-import { useEffect, useCallback, useState } from 'react';
-import { Extension, Node } from '@tiptap/core';
-import type { Command, RawCommands } from '@tiptap/core';
-import { FormulaNode } from '../Formula/FormulaNode';
-import { createPortal } from 'react-dom';
+import Placeholder from '@tiptap/extension-placeholder';
+import { useEffect, useCallback } from 'react';
+import { Extension } from '@tiptap/core';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -62,39 +60,6 @@ const TextCase = Extension.create({
   },
 });
 
-const Formula = Node.create({
-  name: 'formula',
-  group: 'inline',
-  inline: true,
-  atom: true,
-
-  addAttributes() {
-    return {
-      inline: {
-        default: 'true',
-      },
-      source: {
-        default: 'latex',
-      },
-      content: {
-        default: 'формула',
-      },
-    };
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: 'formula',
-      },
-    ];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return ['formula', { ...HTMLAttributes, 'data-formula': 'true' }, HTMLAttributes.content];
-  },
-});
-
 interface TextBlockProps {
   block: ITextBlock;
   onUpdate: (updates: Partial<ITextBlock>) => void;
@@ -131,6 +96,9 @@ export const TextBlock = ({
       Underline,
       Superscript,
       TextCase,
+      Placeholder.configure({
+        placeholder: 'Введите текст...'
+      }),
       BulletList.configure({
         HTMLAttributes: {
           class: 'list-disc list-outside ml-5',
@@ -142,12 +110,12 @@ export const TextBlock = ({
         },
       }),
       ListItem,
-      Formula,
     ],
     content: block.content?.replace('<!---->', '') || '',
     onUpdate: ({ editor }) => {
       onUpdate({ content: editor.getHTML() + '<!---->' });
     },
+    immediatelyRender: false,
     editorProps: {
       attributes: {
         class: 'prose max-w-none focus:outline-none',
@@ -197,24 +165,6 @@ export const TextBlock = ({
       },
     }
   });
-
-  const [formulaNodes, setFormulaNodes] = useState<HTMLElement[]>([]);
-
-  useEffect(() => {
-    if (!editor) return;
-
-    const updateFormulas = () => {
-      const nodes = editor.view.dom.querySelectorAll('formula') as NodeListOf<HTMLElement>;
-      setFormulaNodes(Array.from(nodes));
-    };
-
-    editor.on('update', updateFormulas);
-    updateFormulas();
-
-    return () => {
-      editor.off('update', updateFormulas);
-    };
-  }, [editor]);
 
   // Делаем редактор доступным через ref
   useEffect(() => {
@@ -366,9 +316,6 @@ export const TextBlock = ({
       data-block-id={block.id}
     >
       <EditorContent editor={editor} />
-      {formulaNodes.map((node, index) => 
-        createPortal(<FormulaNode key={index} node={node} />, document.body)
-      )}
     </div>
   );
 }; 
