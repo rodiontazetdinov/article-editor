@@ -15,20 +15,20 @@ const applyTextCase = (text: string, textCase?: TTextCase): string => {
 };
 
 export const TextBlock = ({ block, onUpdate }: TextBlockProps) => {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    if (contentRef.current && block.content !== contentRef.current.innerHTML) {
+      contentRef.current.innerHTML = block.content || '';
     }
   }, [block.content]);
 
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const target = e.target;
-    target.style.height = 'auto';
-    target.style.height = target.scrollHeight + 'px';
-    onUpdate({ content: target.value });
+  const handleInput = () => {
+    if (contentRef.current) {
+      const content = contentRef.current.innerHTML;
+      // Добавляем <!----> в конец, чтобы сохранить пустые строки
+      onUpdate({ content: content + (content.endsWith('<!---->') ? '' : '<!---->') });
+    }
   };
 
   const getFontSize = () => {
@@ -50,13 +50,13 @@ export const TextBlock = ({ block, onUpdate }: TextBlockProps) => {
   };
 
   return (
-    <textarea
-      ref={textareaRef}
-      value={block.content || ''}
-      onChange={handleInput}
-      className={`w-full outline-none resize-none overflow-hidden ${getFontSize()} ${getAlignment()} bg-transparent`}
-      placeholder={block.type === 'CAPTION' ? 'Подпись' : block.type === 'P' ? 'Текст параграфа' : 'Заголовок'}
-      rows={1}
+    <div
+      ref={contentRef}
+      contentEditable
+      onInput={handleInput}
+      className={`w-full outline-none min-h-[1.5em] ${getFontSize()} ${getAlignment()} empty:before:content-[attr(data-placeholder)] before:text-gray-400 before:pointer-events-none`}
+      data-placeholder={block.type === 'CAPTION' ? 'Подпись' : block.type === 'P' ? 'Текст параграфа' : 'Заголовок'}
+      suppressContentEditableWarning
     />
   );
 }; 
