@@ -4,6 +4,58 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Superscript from '@tiptap/extension-superscript';
 import { useEffect, useCallback } from 'react';
+import { Extension } from '@tiptap/core';
+import type { Command, RawCommands } from '@tiptap/core';
+
+declare module '@tiptap/core' {
+  interface Commands<ReturnType> {
+    textCase: {
+      setUpperCase: () => ReturnType;
+      setLowerCase: () => ReturnType;
+      setCapitalize: () => ReturnType;
+    };
+  }
+}
+
+const TextCase = Extension.create({
+  name: 'textCase',
+  addCommands() {
+    return {
+      setUpperCase: () => ({ tr, state, dispatch }) => {
+        console.log('setUpperCase command:', {
+          selection: state.selection,
+          text: state.doc.textBetween(state.selection.from, state.selection.to)
+        });
+        
+        if (!dispatch) return false;
+        const { from, to } = state.selection;
+        const text = state.doc.textBetween(from, to);
+        const newText = text.toUpperCase();
+        
+        console.log('Transforming text:', { from, to, text, newText });
+        tr.insertText(newText, from, to);
+        return true;
+      },
+      setLowerCase: () => ({ tr, state, dispatch }) => {
+        if (!dispatch) return false;
+        const { from, to } = state.selection;
+        const text = state.doc.textBetween(from, to);
+        tr.insertText(text.toLowerCase(), from, to);
+        return true;
+      },
+      setCapitalize: () => ({ tr, state, dispatch }) => {
+        if (!dispatch) return false;
+        const { from, to } = state.selection;
+        const text = state.doc.textBetween(from, to);
+        const capitalized = text.split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+        tr.insertText(capitalized, from, to);
+        return true;
+      },
+    };
+  },
+});
 
 interface TextBlockProps {
   block: ITextBlock;
@@ -16,6 +68,7 @@ interface TextBlockProps {
   };
   onActiveFormatsChange?: (formats: NonNullable<TextBlockProps['activeFormats']>) => void;
   onEnterPress?: () => void;
+  onTextCase?: (type: 'upper' | 'lower' | 'capitalize') => void;
 }
 
 export const TextBlock = ({ 
@@ -23,18 +76,37 @@ export const TextBlock = ({
   onUpdate, 
   activeFormats, 
   onActiveFormatsChange,
-  onEnterPress 
+  onEnterPress,
+  onTextCase 
 }: TextBlockProps) => {
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        history: {
+          depth: 100,
+          newGroupDelay: 500
+        }
+      }),
       Underline,
-      Superscript
+      Superscript,
+      TextCase
     ],
     content: block.content?.replace('<!---->', '') || '',
+    onUpdate: ({ editor }) => {
+      onUpdate({ content: editor.getHTML() });
+    },
     editorProps: {
       attributes: {
-        class: 'focus:outline-none',
+        class: 'prose max-w-none focus:outline-none',
+      },
+      handleDOMEvents: {
+        keydown: (view, event) => {
+          if (event.key === ' ' && !event.repeat) {
+            view.dispatch(view.state.tr.insertText(' '));
+            return true;
+          }
+          return false;
+        }
       },
       handleKeyDown: (view, event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -42,7 +114,7 @@ export const TextBlock = ({
           onEnterPress?.();
           return true;
         }
-        if (event.key === 'Escape') {
+        if (event.key === 'Escape' && editor) {
           editor.commands.unsetSuperscript();
           editor.commands.unsetBold();
           editor.commands.unsetItalic();
@@ -51,29 +123,96 @@ export const TextBlock = ({
         }
         return false;
       },
-    },
-    onUpdate: ({ editor }) => {
-      const content = editor.getHTML() + '<!---->'; // Добавляем комментарий для совместимости
-      onUpdate({ content });
-      updateActiveFormats();
-    },
-    onSelectionUpdate: () => {
-      updateActiveFormats();
-    },
+    }
   });
 
-  const updateActiveFormats = useCallback(() => {
-    if (!editor || !onActiveFormatsChange) return;
+  // Применяем textCase при монтировании и изменении
+  useEffect(() => {
+    if (!editor || !block.textCase) return;
+    
+    requestAnimationFrame(() => {
+      editor.commands.selectAll();
+      switch (block.textCase) {
+        case 'uppercase':
+          editor.chain().setUpperCase().run();
+          break;
+        case 'lowercase':
+          editor.chain().setLowerCase().run();
+          break;
+        case 'capitalize':
+          editor.chain().setCapitalize().run();
+          break;
+      }
+      editor.commands.focus('end');
+    });
+  }, [editor, block.textCase]);
 
-    const formats = {
-      bold: editor.isActive('bold'),
-      italic: editor.isActive('italic'),
-      underline: editor.isActive('underline'),
-      superscript: editor.isActive('superscript')
-    };
-
-    onActiveFormatsChange(formats);
-  }, [editor, onActiveFormatsChange]);
+  const handleTextCase = useCallback((type: 'upper' | 'lower' | 'capitalize') => {
+    if (!editor) return;
+    
+    const { from, to } = editor.state.selection;
+    const hasSelection = from !== to;
+    
+    // Сохраняем текущее выделение
+    const selection = { from, to };
+    
+    if (!hasSelection) {
+      editor.commands.selectAll();
+    }
+    
+    switch (type) {
+      case 'upper':
+        if (hasSelection) {
+          editor.chain()
+            .focus()
+            .command(({ tr }) => {
+              const text = tr.doc.textBetween(selection.from, selection.to);
+              tr.insertText(text.toUpperCase(), selection.from, selection.to);
+              return true;
+            })
+            .run();
+        } else {
+          editor.chain().setUpperCase().run();
+          onUpdate({ textCase: 'uppercase' });
+        }
+        break;
+      case 'lower':
+        if (hasSelection) {
+          editor.chain()
+            .focus()
+            .command(({ tr }) => {
+              const text = tr.doc.textBetween(selection.from, selection.to);
+              tr.insertText(text.toLowerCase(), selection.from, selection.to);
+              return true;
+            })
+            .run();
+        } else {
+          editor.chain().setLowerCase().run();
+          onUpdate({ textCase: 'lowercase' });
+        }
+        break;
+      case 'capitalize':
+        if (hasSelection) {
+          editor.chain()
+            .focus()
+            .command(({ tr }) => {
+              const text = tr.doc.textBetween(selection.from, selection.to);
+              const capitalized = text.split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
+              tr.insertText(capitalized, selection.from, selection.to);
+              return true;
+            })
+            .run();
+        } else {
+          editor.chain().setCapitalize().run();
+          onUpdate({ textCase: 'capitalize' });
+        }
+        break;
+    }
+    
+    editor.commands.focus();
+  }, [editor, onUpdate]);
 
   // Синхронизируем внешние изменения с редактором
   useEffect(() => {

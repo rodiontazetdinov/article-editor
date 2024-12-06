@@ -206,6 +206,17 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     }
   };
 
+  const handleTextCase = (type: 'upper' | 'lower' | 'capitalize') => {
+    if (selectedBlockId) {
+      const block = blocks.find(b => b.id === selectedBlockId);
+      if (block?.type === 'P') {
+        setBlocks(blocks.map(b => 
+          b.id === selectedBlockId ? { ...b } : b
+        ));
+      }
+    }
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto">
       <Toolbar
