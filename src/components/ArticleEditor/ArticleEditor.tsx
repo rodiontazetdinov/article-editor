@@ -9,6 +9,7 @@ import { ImageBlock } from '../blocks/ImageBlock';
 import { BlockWrapper } from '../blocks/BlockWrapper';
 import { AddBlockButton } from '../blocks/AddBlockButton';
 import { Toolbar } from '../Toolbar/Toolbar';
+import { JsonPreview } from '../JsonPreview/JsonPreview';
 
 interface ArticleEditorProps {
   initialData?: IArticle;
@@ -157,10 +158,20 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   const handleListClick = (type: 'bullet' | 'number') => {
     if (!selectedBlockId) return;
     
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
+    const block = blocks.find(b => b.id === selectedBlockId);
+    if (!block || block.type !== 'P') return;
 
-    document.execCommand(type === 'bullet' ? 'insertUnorderedList' : 'insertOrderedList', false);
+    const blockElement = document.querySelector(`[data-block-id="${selectedBlockId}"]`);
+    if (!blockElement) return;
+
+    const editor = (blockElement as any)._editor;
+    if (!editor) return;
+
+    if (type === 'bullet') {
+      editor.chain().focus().toggleBulletList().run();
+    } else {
+      editor.chain().focus().toggleOrderedList().run();
+    }
   };
 
   const handleFormulaClick = () => {
@@ -259,6 +270,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
           )}
         </div>
       </div>
+      <JsonPreview blocks={blocks} />
     </div>
   );
 }; 

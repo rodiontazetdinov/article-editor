@@ -3,6 +3,9 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Superscript from '@tiptap/extension-superscript';
+import BulletList from '@tiptap/extension-bullet-list';
+import OrderedList from '@tiptap/extension-ordered-list';
+import ListItem from '@tiptap/extension-list-item';
 import { useEffect, useCallback } from 'react';
 import { Extension } from '@tiptap/core';
 import type { Command, RawCommands } from '@tiptap/core';
@@ -85,15 +88,29 @@ export const TextBlock = ({
         history: {
           depth: 100,
           newGroupDelay: 500
-        }
+        },
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
       }),
       Underline,
       Superscript,
-      TextCase
+      TextCase,
+      BulletList.configure({
+        HTMLAttributes: {
+          class: 'list-disc list-inside',
+        },
+      }),
+      OrderedList.configure({
+        HTMLAttributes: {
+          class: 'list-decimal list-inside',
+        },
+      }),
+      ListItem,
     ],
     content: block.content?.replace('<!---->', '') || '',
     onUpdate: ({ editor }) => {
-      onUpdate({ content: editor.getHTML() });
+      onUpdate({ content: editor.getHTML() + '<!---->' });
     },
     editorProps: {
       attributes: {
@@ -110,6 +127,25 @@ export const TextBlock = ({
       },
       handleKeyDown: (view, event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
+          const isInList = editor?.isActive('bulletList') || editor?.isActive('orderedList');
+          if (isInList && editor) {
+            // Проверяем, пустой ли текущий элемент списка
+            const isEmpty = editor.state.doc.textBetween(
+              editor.state.selection.from - 1,
+              editor.state.selection.from
+            ).length === 0;
+
+            if (isEmpty) {
+              // Выходим из списка
+              editor.commands.liftListItem('listItem');
+            } else {
+              // Добавляем новый элемент списка
+              event.preventDefault();
+              editor.commands.splitListItem('listItem');
+            }
+            return true;
+          }
+          // Если не в списке, создаем новый блок
           event.preventDefault();
           onEnterPress?.();
           return true;
@@ -125,6 +161,14 @@ export const TextBlock = ({
       },
     }
   });
+
+  // Делаем редактор доступным через ref
+  useEffect(() => {
+    const element = document.querySelector(`[data-block-id="${block.id}"]`);
+    if (element && editor) {
+      (element as any)._editor = editor;
+    }
+  }, [editor, block.id]);
 
   // Применяем textCase при монтировании и изменении
   useEffect(() => {
@@ -265,6 +309,7 @@ export const TextBlock = ({
     <div
       className={`w-full ${getFontSize()} ${getAlignment()}`}
       data-placeholder={block.type === 'CAPTION' ? 'Подпись' : block.type === 'P' ? 'Текст параграфа' : 'Заголовок'}
+      data-block-id={block.id}
     >
       <EditorContent editor={editor} />
     </div>
