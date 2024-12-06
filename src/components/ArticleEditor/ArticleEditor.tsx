@@ -7,6 +7,7 @@ import { TextBlock } from '../blocks/TextBlock';
 import { FormulaBlock } from '../blocks/FormulaBlock';
 import { ImageBlock } from '../blocks/ImageBlock';
 import { BlockWrapper } from '../blocks/BlockWrapper';
+import { AddBlockButton } from '../blocks/AddBlockButton';
 
 interface ArticleEditorProps {
   initialData?: IArticle;
@@ -16,7 +17,7 @@ interface ArticleEditorProps {
 export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => {
   const [blocks, setBlocks] = useState<TArticleBlock[]>(initialData?.blocks || []);
 
-  const addBlock = (type: TArticleBlock['type']) => {
+  const createBlock = (type: TArticleBlock['type']): TArticleBlock => {
     const baseBlock = {
       id: nanoid(10),
       indent: 0,
@@ -25,19 +26,32 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
       $new: true,
     };
 
-    let newBlock: TArticleBlock;
-    
     if (type === 'H1' || type === 'P') {
-      newBlock = { ...baseBlock, type, content: '' } as ITextBlock;
+      return { ...baseBlock, type, content: '' } as ITextBlock;
     } else if (type === 'FORMULA') {
-      newBlock = { ...baseBlock, type, source: 'latex', content: '' } as IFormulaBlock;
+      return { ...baseBlock, type, source: 'latex', content: '' } as IFormulaBlock;
     } else if (type === 'IMAGE') {
-      newBlock = { ...baseBlock, type, variant: '1', images: [], src: '' } as IImageBlock;
+      return { ...baseBlock, type, variant: '1', images: [], src: '' } as IImageBlock;
     } else {
-      newBlock = { ...baseBlock, type } as IRenderBlock;
+      return { ...baseBlock, type } as IRenderBlock;
+    }
+  };
+
+  const addBlock = (type: TArticleBlock['type'], afterId?: string) => {
+    const newBlock = createBlock(type);
+    let newBlocks: TArticleBlock[];
+
+    if (!afterId) {
+      newBlocks = [...blocks, newBlock];
+    } else {
+      const index = blocks.findIndex(block => block.id === afterId);
+      newBlocks = [
+        ...blocks.slice(0, index + 1),
+        newBlock,
+        ...blocks.slice(index + 1)
+      ];
     }
 
-    const newBlocks = [...blocks, newBlock];
     setBlocks(newBlocks);
     onChange?.({ blocks: newBlocks });
   };
@@ -74,47 +88,25 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
-      <div className="space-y-6">
-        {blocks.map((block) => (
-          <BlockWrapper
-            key={block.id}
-            block={block}
-            onUpdate={(updates) => updateBlock(block.id, updates)}
-            onDelete={() => deleteBlock(block.id)}
-          >
-            {renderBlock(block)}
-          </BlockWrapper>
-        ))}
-      </div>
-      
-      <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Добавить блок</h3>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => addBlock('H1')}
-            className="bg-white border border-blue-500 text-blue-500 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          >
-            Заголовок
-          </button>
-          <button
-            onClick={() => addBlock('P')}
-            className="bg-white border border-blue-500 text-blue-500 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          >
-            Параграф
-          </button>
-          <button
-            onClick={() => addBlock('FORMULA')}
-            className="bg-white border border-blue-500 text-blue-500 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          >
-            Формула
-          </button>
-          <button
-            onClick={() => addBlock('IMAGE')}
-            className="bg-white border border-blue-500 text-blue-500 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          >
-            Изображение
-          </button>
-        </div>
+      <div>
+        {blocks.length === 0 ? (
+          <div className="text-center py-12">
+            <AddBlockButton onAdd={(type) => addBlock(type)} />
+            <p className="text-gray-500 mt-4">Нажмите + чтобы добавить первый блок</p>
+          </div>
+        ) : (
+          blocks.map((block) => (
+            <BlockWrapper
+              key={block.id}
+              block={block}
+              onUpdate={(updates) => updateBlock(block.id, updates)}
+              onDelete={() => deleteBlock(block.id)}
+              onAdd={(type) => addBlock(type, block.id)}
+            >
+              {renderBlock(block)}
+            </BlockWrapper>
+          ))
+        )}
       </div>
     </div>
   );
