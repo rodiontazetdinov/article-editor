@@ -22,6 +22,12 @@ interface ToolbarProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  activeFormats?: {
+    bold: boolean;
+    italic: boolean;
+    underline: boolean;
+    superscript: boolean;
+  };
 }
 
 interface ToolbarButton {
@@ -46,7 +52,8 @@ export const Toolbar = ({
   canUndo,
   canRedo,
   onUndo,
-  onRedo
+  onRedo,
+  activeFormats
 }: ToolbarProps) => {
   const toolbarGroups: ToolbarGroup[] = [
     {
@@ -77,10 +84,10 @@ export const Toolbar = ({
     {
       label: 'Форматирование',
       buttons: [
-        { icon: MdFormatBold, label: 'Жирный', action: () => onFormatClick('bold') },
-        { icon: MdFormatItalic, label: 'Курсив', action: () => onFormatClick('italic') },
-        { icon: MdFormatUnderlined, label: 'Подчеркнутый', action: () => onFormatClick('underline') },
-        { icon: MdSuperscript, label: 'Степень', action: () => onFormatClick('superscript') }
+        { icon: MdFormatBold, label: 'Жирный', action: () => onFormatClick('bold'), isActive: activeFormats?.bold },
+        { icon: MdFormatItalic, label: 'Курсив', action: () => onFormatClick('italic'), isActive: activeFormats?.italic },
+        { icon: MdFormatUnderlined, label: 'Подчеркнутый', action: () => onFormatClick('underline'), isActive: activeFormats?.underline },
+        { icon: MdSuperscript, label: 'Степень', action: () => onFormatClick('superscript'), isActive: activeFormats?.superscript }
       ]
     },
     {
@@ -113,9 +120,10 @@ export const Toolbar = ({
                   <button
                     key={button.label}
                     onClick={button.action}
-                    disabled={button.isActive}
-                    className={`p-1.5 rounded hover:bg-gray-100 transition-colors relative group/button
-                      ${button.isActive ? 'opacity-50 cursor-not-allowed' : ''}
+                    disabled={button.isActive && !activeFormats}
+                    className={`p-1.5 rounded transition-colors relative group/button
+                      ${button.isActive && !activeFormats ? 'opacity-50 cursor-not-allowed' : ''}
+                      ${button.isActive && activeFormats ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}
                     `}
                     title={button.label}
                   >

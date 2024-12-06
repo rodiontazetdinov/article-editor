@@ -15,10 +15,23 @@ interface ArticleEditorProps {
   onChange?: (article: IArticle) => void;
 }
 
+interface FormatState {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  superscript: boolean;
+}
+
 export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => {
   const [blocks, setBlocks] = useState<TArticleBlock[]>(initialData?.blocks || []);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [history, setHistory] = useState<{ past: TArticleBlock[][]; future: TArticleBlock[][] }>({ past: [], future: [] });
+  const [activeFormats, setActiveFormats] = useState<FormatState>({
+    bold: false,
+    italic: false,
+    underline: false,
+    superscript: false
+  });
 
   const updateHistory = useCallback((newBlocks: TArticleBlock[]) => {
     setHistory(prev => ({
@@ -127,18 +140,49 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
 
   const handleFormatClick = (format: 'bold' | 'italic' | 'underline' | 'superscript') => {
     if (!selectedBlockId) return;
+    
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      setActiveFormats(prev => ({ ...prev, [format]: !prev[format] }));
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) {
+      setActiveFormats(prev => ({ ...prev, [format]: !prev[format] }));
+      return;
+    }
+
     document.execCommand(format === 'superscript' ? 'superscript' : format, false);
+
+    const blockElement = document.getElementById(selectedBlockId);
+    if (blockElement) {
+      blockElement.focus();
+    }
   };
 
   const handleListClick = (type: 'bullet' | 'number') => {
     if (!selectedBlockId) return;
+    
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
     document.execCommand(type === 'bullet' ? 'insertUnorderedList' : 'insertOrderedList', false);
   };
 
   const handleFormulaClick = () => {
     if (!selectedBlockId) return;
-    const block = blocks.find(b => b.id === selectedBlockId);
-    if (block && 'content' in block) {
+    
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const selectedText = range.toString();
+    
+    if (selectedText) {
+      const formula = `<formula inline="true" source="latex">${selectedText}</formula>`;
+      document.execCommand('insertHTML', false, formula);
+    } else {
       const formula = '<formula inline="true" source="latex">формула</formula>';
       document.execCommand('insertHTML', false, formula);
     }
