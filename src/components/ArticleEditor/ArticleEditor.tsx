@@ -362,30 +362,26 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
               <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <div className="max-w-2xl mx-auto space-y-6">
                   <div className="text-gray-500">
-                    <svg className="w-12 h-12 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
                     <h3 className="text-lg font-medium mb-2">Начните создавать статью</h3>
-                    <p className="text-sm">Выберите тип блока, чтобы начать</p>
-                  </div>
-                  <div className="flex flex-wrap justify-center gap-3 px-4">
-                    <button
-                      onClick={() => addBlock('H1')}
-                      className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
-                    >
-                      <span className="text-lg font-bold text-gray-400 group-hover:text-blue-500">H1</span>
-                      <span className="text-gray-500 group-hover:text-blue-600">Заголовок</span>
-                    </button>
-                    <button
-                      onClick={() => addBlock('P')}
-                      className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
-                    >
-                      <span className="text-lg font-bold text-gray-400 group-hover:text-blue-500">¶</span>
-                      <span className="text-gray-500 group-hover:text-blue-600">Параграф</span>
-                    </button>
-                    <div className="flex items-center gap-3">
-                      <div className="w-px h-8 bg-gray-200"></div>
-                      <AddBlockButton onAdd={(type) => addBlock(type)} />
+                    <p className="text-sm mb-4">Выберите тип блока, чтобы начать</p>
+                    <div className="flex items-center justify-center gap-4">
+                      <button
+                        onClick={() => addBlock('H1')}
+                        className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                      >
+                        <span className="text-lg font-bold text-gray-400 group-hover:text-blue-500">H1</span>
+                        <span className="text-gray-500 group-hover:text-blue-600">Заголовок</span>
+                      </button>
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      <button
+                        onClick={() => addBlock('P')}
+                        className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                      >
+                        <span className="text-lg font-bold text-gray-400 group-hover:text-blue-500">¶</span>
+                        <span className="text-gray-500 group-hover:text-blue-600">Параграф</span>
+                      </button>
                     </div>
                   </div>
                   <div className="text-sm text-gray-400">
