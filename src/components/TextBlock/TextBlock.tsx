@@ -180,7 +180,23 @@ export const TextBlock = ({
 
   const handleClearFormat = () => {
     if (!editor) return;
-    editor.chain().focus().unsetAllMarks().run();
+    
+    const plainText = editor.state.doc.textContent;
+    
+    editor.chain()
+      .focus()
+      .clearNodes()
+      .clearContent()
+      .insertContent(plainText)
+      .setParagraph()
+      .setTextAlign('left')
+      .run();
+
+    onUpdate({ 
+      type: 'P',
+      align: 'left',
+      content: `<p>${plainText}</p>`
+    });
   };
 
   return (
