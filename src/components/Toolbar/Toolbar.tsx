@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { TBlockType, TTextAlign, TTextCase } from '@/types/article';
 import { IconType } from 'react-icons';
 import { 
@@ -5,10 +6,9 @@ import {
   MdFormatBold, MdFormatItalic, MdFormatUnderlined,
   MdSuperscript, MdFormatListBulleted, MdFormatListNumbered,
   MdFormatAlignLeft, MdFormatAlignCenter, MdFormatAlignRight,
-  MdFunctions, MdFormatClear
+  MdFunctions, MdFormatClear, MdKeyboardArrowDown
 } from 'react-icons/md';
 import { BsTypeH1, BsTypeH2, BsTypeH3, BsParagraph } from 'react-icons/bs';
-import { TbAB, TbAB2, TbLetterCase } from 'react-icons/tb';
 import { RiText } from 'react-icons/ri';
 
 interface ToolbarProps {
@@ -31,18 +31,6 @@ interface ToolbarProps {
   };
 }
 
-interface ToolbarButton {
-  icon: IconType;
-  label: string;
-  action: () => void;
-  isActive?: boolean;
-}
-
-interface ToolbarGroup {
-  label: string;
-  buttons: ToolbarButton[];
-}
-
 export const Toolbar = ({
   onBlockTypeChange,
   onTextAlignChange,
@@ -57,112 +45,151 @@ export const Toolbar = ({
   onRedo,
   activeFormats
 }: ToolbarProps) => {
-  const toolbarGroups: ToolbarGroup[] = [
-    {
-      label: 'История',
-      buttons: [
-        { icon: MdUndo, label: 'Отменить (Ctrl+Z)', action: onUndo, isActive: !canUndo },
-        { icon: MdRedo, label: 'Повторить (Ctrl+Shift+Z)', action: onRedo, isActive: !canRedo }
-      ]
-    },
-    {
-      label: 'Блок',
-      buttons: [
-        { icon: BsTypeH1, label: 'Заголовок', action: () => onBlockTypeChange('H1') },
-        { icon: BsTypeH2, label: 'Заголовок раздела', action: () => onBlockTypeChange('H2') },
-        { icon: BsTypeH3, label: 'Заголовок блока', action: () => onBlockTypeChange('H3') },
-        { icon: BsParagraph, label: 'Параграф', action: () => onBlockTypeChange('P') },
-        { icon: RiText, label: 'Подпись', action: () => onBlockTypeChange('CAPTION') }
-      ]
-    },
-    {
-      label: 'Регистр',
-      buttons: [
-        { icon: TbAB, label: 'Все заглавные', action: () => onTextCaseChange('uppercase') },
-        { icon: TbAB2, label: 'Все строчные', action: () => onTextCaseChange('lowercase') },
-        { icon: TbLetterCase, label: 'Первая заглавная', action: () => onTextCaseChange('capitalize') }
-      ]
-    },
-    {
-      label: 'Форматирование',
-      buttons: [
-        { 
-          icon: MdFormatBold, 
-          label: 'Жирный (Ctrl+B)', 
-          action: () => onFormatClick('bold'),
-          isActive: activeFormats?.bold
-        },
-        { 
-          icon: MdFormatItalic, 
-          label: 'Курсив (Ctrl+I)', 
-          action: () => onFormatClick('italic'),
-          isActive: activeFormats?.italic
-        },
-        { 
-          icon: MdFormatUnderlined, 
-          label: 'Подчеркнутый (Ctrl+U)', 
-          action: () => onFormatClick('underline'),
-          isActive: activeFormats?.underline
-        },
-        { 
-          icon: MdSuperscript, 
-          label: 'Степень', 
-          action: () => onFormatClick('superscript'),
-          isActive: activeFormats?.superscript
-        },
-        {
-          icon: MdFormatClear,
-          label: 'Сбросить форматирование (Ctrl+\\)',
-          action: onClearFormat
-        }
-      ]
-    },
-    {
-      label: 'Выравнивание',
-      buttons: [
-        { icon: MdFormatAlignLeft, label: 'По левому краю', action: () => onTextAlignChange('left') },
-        { icon: MdFormatAlignCenter, label: 'По центру', action: () => onTextAlignChange('center') },
-        { icon: MdFormatAlignRight, label: 'По правому краю', action: () => onTextAlignChange('right') }
-      ]
-    },
-    {
-      label: 'Списки и формулы',
-      buttons: [
-        { icon: MdFormatListBulleted, label: 'Маркированный список', action: () => onListClick('bullet') },
-        { icon: MdFormatListNumbered, label: 'Нумерованный список', action: () => onListClick('number') },
-        { icon: MdFunctions, label: 'Формула', action: onFormulaClick }
-      ]
-    }
+  const [showBlockTypes, setShowBlockTypes] = useState(false);
+
+  const blockTypes = [
+    { icon: BsTypeH1, label: 'Заголовок', type: 'H1' as TBlockType },
+    { icon: BsTypeH2, label: 'Подзаголовок', type: 'H2' as TBlockType },
+    { icon: BsTypeH3, label: 'Малый заголовок', type: 'H3' as TBlockType },
+    { icon: BsParagraph, label: 'Параграф', type: 'P' as TBlockType },
+    { icon: RiText, label: 'Подпись', type: 'CAPTION' as TBlockType },
   ];
 
+  const CurrentBlockIcon = BsParagraph;
+
   return (
-    <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-      <div className="max-w-4xl mx-auto px-4 py-2">
-        <div className="flex flex-wrap gap-2">
-          {toolbarGroups.map((group, groupIndex) => (
-            <div key={group.label} className="flex items-center">
-              {groupIndex > 0 && <div className="w-px h-6 bg-gray-200 mx-2" />}
-              <div className="flex gap-1">
-                {group.buttons.map((button) => (
-                  <button
-                    key={button.label}
-                    onClick={button.action}
-                    disabled={button.isActive && !activeFormats}
-                    className={`p-1.5 rounded transition-colors relative group/button
-                      ${button.isActive ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100'}
-                    `}
-                    title={button.label}
-                  >
-                    <button.icon className="w-4 h-4" />
-                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-gray-800 text-white rounded opacity-0 group-hover/button:opacity-100 transition-opacity whitespace-nowrap">
-                      {button.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+    <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-1.5 shadow-sm">
+      <div className="relative">
+        <button
+          onClick={() => setShowBlockTypes(!showBlockTypes)}
+          className="flex items-center gap-1 px-2 py-1.5 rounded hover:bg-gray-100 text-gray-700"
+        >
+          <CurrentBlockIcon className="w-4 h-4" />
+          <MdKeyboardArrowDown className="w-4 h-4" />
+        </button>
+        {showBlockTypes && (
+          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px] z-50">
+            {blockTypes.map((type) => (
+              <button
+                key={type.type}
+                onClick={() => {
+                  onBlockTypeChange(type.type);
+                  setShowBlockTypes(false);
+                }}
+                className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
+              >
+                <type.icon className="w-4 h-4" />
+                <span>{type.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="w-px h-5 bg-gray-200" />
+
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onFormatClick('bold')}
+          className={`p-1.5 rounded hover:bg-gray-100 ${activeFormats?.bold ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+          title="Жирный (Ctrl+B)"
+        >
+          <MdFormatBold className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onFormatClick('italic')}
+          className={`p-1.5 rounded hover:bg-gray-100 ${activeFormats?.italic ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+          title="Курсив (Ctrl+I)"
+        >
+          <MdFormatItalic className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onFormatClick('underline')}
+          className={`p-1.5 rounded hover:bg-gray-100 ${activeFormats?.underline ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+          title="Подчеркнутый (Ctrl+U)"
+        >
+          <MdFormatUnderlined className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onFormatClick('superscript')}
+          className={`p-1.5 rounded hover:bg-gray-100 ${activeFormats?.superscript ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+          title="Верхний индекс"
+        >
+          <MdSuperscript className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onClearFormat}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="Очистить форматирование (Ctrl+\)"
+        >
+          <MdFormatClear className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="w-px h-5 bg-gray-200" />
+
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onTextAlignChange('left')}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="По левому краю"
+        >
+          <MdFormatAlignLeft className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onTextAlignChange('center')}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="По центру"
+        >
+          <MdFormatAlignCenter className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onTextAlignChange('right')}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="По правому краю"
+        >
+          <MdFormatAlignRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="w-px h-5 bg-gray-200" />
+
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onListClick('bullet')}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="Маркированный список"
+        >
+          <MdFormatListBulleted className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onListClick('number')}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="Нумерованный список"
+        >
+          <MdFormatListNumbered className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="w-px h-5 bg-gray-200" />
+
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
+          title="Отменить (Ctrl+Z)"
+        >
+          <MdUndo className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onRedo}
+          disabled={!canRedo}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
+          title="Повторить (Ctrl+Shift+Z)"
+        >
+          <MdRedo className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );

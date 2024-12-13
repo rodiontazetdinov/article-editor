@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { IArticle, TArticleBlock, ITextBlock, IFormulaBlock, IImageBlock, IRenderBlock, TBlockType, TTextAlign, TTextCase } from '@/types/article';
 import { nanoid } from 'nanoid';
-import { TextBlock } from '../blocks/TextBlock';
+import { TextBlock } from './../TextBlock/TextBlock';
 import { FormulaBlock } from '../blocks/FormulaBlock';
 import { ImageBlock } from '../blocks/ImageBlock';
 import { BlockWrapper } from '../blocks/BlockWrapper';
@@ -272,6 +272,8 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
           <TextBlock 
             block={block} 
             onUpdate={(updates) => updateBlock(block.id, updates)}
+            onDelete={() => deleteBlock(block.id)}
+            onAdd={(type) => addBlock(type, block.id)}
             activeFormats={selectedBlockId === block.id ? activeFormats : undefined}
             onActiveFormatsChange={handleActiveFormatsChange}
             onEnterPress={() => addBlock('P', block.id)}
@@ -327,6 +329,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
         <div className="flex justify-between items-center mb-4 px-4">
           <ImportDocument onImport={handleImport} />
         </div>
+        {/* Временно скрываем верхний тулбар
         <Toolbar
           onBlockTypeChange={handleBlockTypeChange}
           onTextAlignChange={handleTextAlignChange}
@@ -341,6 +344,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
           onRedo={redo}
           activeFormats={activeFormats}
         />
+        */}
         <div className="p-4">
           <div>
             {blocks.length === 0 ? (

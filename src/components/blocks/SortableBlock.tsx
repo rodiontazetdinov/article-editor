@@ -61,6 +61,8 @@ export const SortableBlock = ({
           <TextBlock 
             block={block} 
             onUpdate={onUpdate}
+            onDelete={onDelete}
+            onAdd={onAdd}
             activeFormats={isSelected ? activeFormats : undefined}
             onActiveFormatsChange={onActiveFormatsChange}
             onEnterPress={onEnterPress}

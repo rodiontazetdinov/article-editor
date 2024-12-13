@@ -1,50 +1,71 @@
 import { TArticleBlock } from '@/types/article';
 import { useState } from 'react';
-import { AddBlockButton } from './AddBlockButton';
+import { MdDelete, MdCode, MdAdd } from 'react-icons/md';
 
 interface BlockWrapperProps {
   block: TArticleBlock;
   onUpdate: (updates: Partial<TArticleBlock>) => void;
   onDelete: () => void;
   onAdd: (type: TArticleBlock['type']) => void;
+  blockControls?: React.ReactNode;
   children: React.ReactNode;
 }
 
-export const BlockWrapper = ({ block, onDelete, onAdd, children }: BlockWrapperProps) => {
+export const BlockWrapper = ({ block, onDelete, onAdd, blockControls, children }: BlockWrapperProps) => {
   const [showJson, setShowJson] = useState(false);
 
   return (
-    <div className="group/block mb-8 relative">
-      <div className="relative bg-white shadow-sm hover:shadow-md transition-all duration-200 rounded-lg p-4 border-l-4 border-l-blue-500">
-        <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-4 h-8 bg-blue-500 opacity-0 group-hover/block:opacity-100 rounded-r transition-opacity" />
-        
-        {showJson ? (
-          <pre className="bg-gray-50 p-3 rounded-md font-mono text-sm overflow-x-auto">
-            {JSON.stringify(block, null, 2)}
-          </pre>
-        ) : (
-          <div className="min-h-[40px]">
-            {children}
+    <div className="relative mb-8">
+      <div className="bg-white rounded-xl">
+        <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-gray-100">
+          <div className="flex items-center gap-4">
+            <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-gray-500 uppercase">
+              {block.type}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowJson(!showJson)}
+                className={`p-1.5 rounded transition-colors ${
+                  showJson 
+                    ? 'bg-blue-50 text-blue-600' 
+                    : 'text-gray-400 hover:bg-gray-50'
+                }`}
+                title={showJson ? "Скрыть JSON" : "Показать JSON"}
+              >
+                <MdCode className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onDelete()}
+                className="p-1.5 rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                title="Удалить блок"
+              >
+                <MdDelete className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onAdd('P')}
+                className="p-1.5 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-500 transition-colors"
+                title="Добавить блок"
+              >
+                <MdAdd className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {blockControls}
+          </div>
+        </div>
+
+        {/* JSON представление */}
+        {showJson && (
+          <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 font-mono text-xs text-gray-600 overflow-x-auto">
+            <pre>{JSON.stringify(block, null, 2)}</pre>
           </div>
         )}
-        
-        <div className="absolute top-2 right-2 opacity-0 group-hover/block:opacity-100 flex gap-2 transition-opacity">
-          <button
-            onClick={() => setShowJson(!showJson)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors"
-          >
-            {showJson ? 'Редактировать' : 'JSON'}
-          </button>
-          <button
-            onClick={onDelete}
-            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors"
-          >
-            Удалить
-          </button>
+
+        {/* Основной контент */}
+        <div className="px-4 py-3">
+          {children}
         </div>
-      </div>
-      <div className="absolute -bottom-5 left-0 right-0 opacity-0 group-hover/block:opacity-100 transition-opacity">
-        <AddBlockButton onAdd={onAdd} />
       </div>
     </div>
   );

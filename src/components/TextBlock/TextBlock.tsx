@@ -7,6 +7,7 @@ import { Toolbar } from '../Toolbar/Toolbar';
 import Bold from '@tiptap/extension-bold';
 import { TArticleBlock, ITextBlock } from '@/types/article';
 import { useEffect } from 'react';
+import { BlockWrapper } from '../blocks/BlockWrapper';
 
 interface TextBlockProps {
   block: ITextBlock;
@@ -17,8 +18,10 @@ interface TextBlockProps {
     underline: boolean;
     superscript: boolean;
   };
-  onActiveFormatsChange?: (formats: any) => void;
+  onActiveFormatsChange?: (formats: NonNullable<TextBlockProps['activeFormats']>) => void;
   onEnterPress?: () => void;
+  onDelete: () => void;
+  onAdd: (type: TArticleBlock['type']) => void;
   shouldFocus?: boolean;
 }
 
@@ -28,6 +31,8 @@ export const TextBlock = ({
   activeFormats,
   onActiveFormatsChange,
   onEnterPress,
+  onDelete,
+  onAdd,
   shouldFocus
 }: TextBlockProps) => {
   const editor = useEditor({
@@ -99,32 +104,37 @@ export const TextBlock = ({
   };
 
   return (
-    <div className="text-block">
-      <Toolbar
-        onBlockTypeChange={(type) => editor?.chain().focus().setNode(type).run()}
-        onTextAlignChange={(align) => editor?.chain().focus().setTextAlign(align).run()}
-        onTextCaseChange={(textCase) => {/* ... */}}
-        onFormatClick={handleFormatClick}
-        onClearFormat={handleClearFormat}
-        onListClick={(type) => {
-          if (type === 'bullet') editor?.chain().focus().toggleBulletList().run();
-          if (type === 'number') editor?.chain().focus().toggleOrderedList().run();
-        }}
-        onFormulaClick={() => {/* ... */}}
-        canUndo={editor?.can().undo() ?? false}
-        canRedo={editor?.can().redo() ?? false}
-        onUndo={() => editor?.chain().focus().undo().run()}
-        onRedo={() => editor?.chain().focus().redo().run()}
-        activeFormats={{
-          bold: editor?.isActive('bold') ?? false,
-          italic: editor?.isActive('italic') ?? false,
-          underline: editor?.isActive('underline') ?? false,
-          superscript: editor?.isActive('superscript') ?? false,
-        }}
-      />
-      <EditorContent 
-        editor={editor}
-      />
-    </div>
+    <BlockWrapper
+      block={block}
+      onUpdate={onUpdate}
+      onDelete={onDelete}
+      onAdd={onAdd}
+    >
+      <div className="space-y-4">
+        <Toolbar
+          onBlockTypeChange={(type) => editor?.chain().focus().setNode(type).run()}
+          onTextAlignChange={(align) => editor?.chain().focus().setTextAlign(align).run()}
+          onTextCaseChange={(textCase) => {/* ... */}}
+          onFormatClick={handleFormatClick}
+          onClearFormat={handleClearFormat}
+          onListClick={(type) => {
+            if (type === 'bullet') editor?.chain().focus().toggleBulletList().run();
+            if (type === 'number') editor?.chain().focus().toggleOrderedList().run();
+          }}
+          onFormulaClick={() => {/* ... */}}
+          canUndo={editor?.can().undo() ?? false}
+          canRedo={editor?.can().redo() ?? false}
+          onUndo={() => editor?.chain().focus().undo().run()}
+          onRedo={() => editor?.chain().focus().redo().run()}
+          activeFormats={{
+            bold: editor?.isActive('bold') ?? false,
+            italic: editor?.isActive('italic') ?? false,
+            underline: editor?.isActive('underline') ?? false,
+            superscript: editor?.isActive('superscript') ?? false,
+          }}
+        />
+        <EditorContent editor={editor} />
+      </div>
+    </BlockWrapper>
   );
 }; 
