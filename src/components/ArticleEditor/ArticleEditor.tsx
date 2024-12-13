@@ -13,6 +13,22 @@ import { JsonPreview } from '../JsonPreview/JsonPreview';
 import { ArticlePreview } from '../ArticlePreview/ArticlePreview';
 import { MdPreview, MdClose } from 'react-icons/md';
 import { ImportDocument } from '../ImportDocument/ImportDocument';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { SortableBlock } from '../blocks/SortableBlock';
 
 interface ArticleEditorProps {
   initialData?: IArticle;
@@ -29,6 +45,7 @@ interface FormatState {
 export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => {
   const [blocks, setBlocks] = useState<TArticleBlock[]>(initialData?.blocks || []);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
   const [history, setHistory] = useState<{ past: TArticleBlock[][]; future: TArticleBlock[][] }>({ past: [], future: [] });
   const [activeFormats, setActiveFormats] = useState<{
     bold: boolean;
@@ -42,6 +59,13 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     superscript: false
   });
   const [showPreview, setShowPreview] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const updateHistory = useCallback((newBlocks: TArticleBlock[]) => {
     setHistory(prev => ({
@@ -98,22 +122,52 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     }
   };
 
-  const addBlock = (type: TArticleBlock['type'], afterId?: string) => {
-    const newBlock = createBlock(type);
-    let newBlocks: TArticleBlock[];
+  const addBlock = (type: TBlockType, afterId?: string) => {
+    const newBlock: TArticleBlock = type === 'FORMULA' 
+      ? {
+          id: nanoid(10),
+          indent: 0,
+          type,
+          modified: new Date().toISOString(),
+          content: '',
+          source: 'latex',
+          $new: true,
+        }
+      : type === 'IMAGE'
+      ? {
+          id: nanoid(10),
+          indent: 0,
+          type,
+          modified: new Date().toISOString(),
+          variant: '1',
+          images: [],
+          src: '',
+          $new: true,
+        }
+      : {
+          id: nanoid(10),
+          indent: 0,
+          type,
+          modified: new Date().toISOString(),
+          content: '',
+          $new: true,
+        };
 
-    if (!afterId) {
-      newBlocks = [...blocks, newBlock];
-    } else {
-      const index = blocks.findIndex(block => block.id === afterId);
+    let newBlocks: TArticleBlock[];
+    if (afterId) {
+      const index = blocks.findIndex(b => b.id === afterId);
       newBlocks = [
         ...blocks.slice(0, index + 1),
         newBlock,
         ...blocks.slice(index + 1)
       ];
+    } else {
+      newBlocks = [...blocks, newBlock];
     }
 
     updateHistory(newBlocks);
+    setSelectedBlockId(newBlock.id);
+    setFocusBlockId(newBlock.id);
   };
 
   const updateBlock = (id: string, updates: Partial<TArticleBlock>) => {
@@ -151,7 +205,10 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   const handleFormatClick = (format: 'bold' | 'italic' | 'underline' | 'superscript') => {
     setActiveFormats(prev => ({
       ...prev,
-      [format]: !prev[format]
+      bold: format === 'bold' ? true : false,
+      italic: format === 'italic' ? true : false,
+      underline: format === 'underline' ? true : false,
+      superscript: format === 'superscript' ? true : false
     }));
   };
 
@@ -230,18 +287,38 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   };
 
   const handleTextCase = (type: 'upper' | 'lower' | 'capitalize') => {
-    if (selectedBlockId) {
-      const block = blocks.find(b => b.id === selectedBlockId);
-      if (block?.type === 'P') {
-        setBlocks(blocks.map(b => 
-          b.id === selectedBlockId ? { ...b } : b
-        ));
-      }
+    if (!selectedBlockId) return;
+    
+    const block = blocks.find(b => b.id === selectedBlockId);
+    if (!block) return;
+    
+    if (block.type === 'P') {
+      setBlocks(blocks.map(b => 
+        b.id === selectedBlockId ? { ...b } : b
+      ));
     }
   };
 
   const handleImport = (importedBlocks: TArticleBlock[]) => {
     updateHistory([...blocks, ...importedBlocks]);
+  };
+
+  const handleClearFormat = () => {
+    // Реализация будет в TextBlock
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setBlocks((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        const newBlocks = arrayMove(items, oldIndex, newIndex);
+        onChange?.({ blocks: newBlocks });
+        return newBlocks;
+      });
+    }
   };
 
   return (
@@ -255,6 +332,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
           onTextAlignChange={handleTextAlignChange}
           onTextCaseChange={handleTextCaseChange}
           onFormatClick={handleFormatClick}
+          onClearFormat={handleClearFormat}
           onListClick={handleListClick}
           onFormulaClick={handleFormulaClick}
           canUndo={history.past.length > 0}
@@ -301,22 +379,31 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
                 </div>
               </div>
             ) : (
-              blocks.map((block) => (
-                <div
-                  key={block.id}
-                  onClick={() => setSelectedBlockId(block.id)}
-                  className={`relative ${selectedBlockId === block.id ? 'ring-2 ring-blue-500 rounded-lg' : ''}`}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={blocks.map(block => block.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <BlockWrapper
-                    block={block}
-                    onUpdate={(updates) => updateBlock(block.id, updates)}
-                    onDelete={() => deleteBlock(block.id)}
-                    onAdd={(type) => addBlock(type, block.id)}
-                  >
-                    {renderBlock(block)}
-                  </BlockWrapper>
-                </div>
-              ))
+                  {blocks.map((block) => (
+                    <SortableBlock
+                      key={block.id}
+                      block={block}
+                      isSelected={selectedBlockId === block.id}
+                      onSelect={() => setSelectedBlockId(block.id)}
+                      onUpdate={(updates) => updateBlock(block.id, updates)}
+                      onDelete={() => deleteBlock(block.id)}
+                      onAdd={(type) => addBlock(type, block.id)}
+                      activeFormats={selectedBlockId === block.id ? activeFormats : undefined}
+                      onActiveFormatsChange={handleActiveFormatsChange}
+                      onEnterPress={() => addBlock('P', block.id)}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
             )}
           </div>
         </div>

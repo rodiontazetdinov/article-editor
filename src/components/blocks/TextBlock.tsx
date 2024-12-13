@@ -1,64 +1,5 @@
-import { ITextBlock } from '@/types/article';
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import Superscript from '@tiptap/extension-superscript';
-import BulletList from '@tiptap/extension-bullet-list';
-import OrderedList from '@tiptap/extension-ordered-list';
-import ListItem from '@tiptap/extension-list-item';
-import Placeholder from '@tiptap/extension-placeholder';
-import { useEffect, useCallback } from 'react';
-import { Extension } from '@tiptap/core';
-
-declare module '@tiptap/core' {
-  interface Commands<ReturnType> {
-    textCase: {
-      setUpperCase: () => ReturnType;
-      setLowerCase: () => ReturnType;
-      setCapitalize: () => ReturnType;
-    };
-  }
-}
-
-const TextCase = Extension.create({
-  name: 'textCase',
-  addCommands() {
-    return {
-      setUpperCase: () => ({ tr, state, dispatch }) => {
-        console.log('setUpperCase command:', {
-          selection: state.selection,
-          text: state.doc.textBetween(state.selection.from, state.selection.to)
-        });
-        
-        if (!dispatch) return false;
-        const { from, to } = state.selection;
-        const text = state.doc.textBetween(from, to);
-        const newText = text.toUpperCase();
-        
-        console.log('Transforming text:', { from, to, text, newText });
-        tr.insertText(newText, from, to);
-        return true;
-      },
-      setLowerCase: () => ({ tr, state, dispatch }) => {
-        if (!dispatch) return false;
-        const { from, to } = state.selection;
-        const text = state.doc.textBetween(from, to);
-        tr.insertText(text.toLowerCase(), from, to);
-        return true;
-      },
-      setCapitalize: () => ({ tr, state, dispatch }) => {
-        if (!dispatch) return false;
-        const { from, to } = state.selection;
-        const text = state.doc.textBetween(from, to);
-        const capitalized = text.split(' ')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-          .join(' ');
-        tr.insertText(capitalized, from, to);
-        return true;
-      },
-    };
-  },
-});
+import React, { useEffect, useRef, useCallback } from 'react';
+import type { ITextBlock } from '@/types/article';
 
 interface TextBlockProps {
   block: ITextBlock;
@@ -71,7 +12,6 @@ interface TextBlockProps {
   };
   onActiveFormatsChange?: (formats: NonNullable<TextBlockProps['activeFormats']>) => void;
   onEnterPress?: () => void;
-  onTextCase?: (type: 'upper' | 'lower' | 'capitalize') => void;
 }
 
 export const TextBlock = ({ 
@@ -79,213 +19,91 @@ export const TextBlock = ({
   onUpdate, 
   activeFormats, 
   onActiveFormatsChange,
-  onEnterPress,
-  onTextCase 
+  onEnterPress 
 }: TextBlockProps) => {
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        history: {
-          depth: 100,
-          newGroupDelay: 500
-        },
-        bulletList: false,
-        orderedList: false,
-        listItem: false,
-      }),
-      Underline,
-      Superscript,
-      TextCase,
-      Placeholder.configure({
-        placeholder: 'Введите текст...'
-      }),
-      BulletList.configure({
-        HTMLAttributes: {
-          class: 'list-disc list-outside ml-5',
-        },
-      }),
-      OrderedList.configure({
-        HTMLAttributes: {
-          class: 'list-decimal list-outside ml-5',
-        },
-      }),
-      ListItem,
-    ],
-    content: block.content?.replace('<!---->', '') || '',
-    onUpdate: ({ editor }) => {
-      onUpdate({ content: editor.getHTML() + '<!---->' });
-    },
-    immediatelyRender: false,
-    editorProps: {
-      attributes: {
-        class: 'prose max-w-none focus:outline-none',
-      },
-      handleDOMEvents: {
-        keydown: (view, event) => {
-          if (event.key === ' ' && !event.repeat) {
-            view.dispatch(view.state.tr.insertText(' '));
-            return true;
-          }
-          return false;
-        }
-      },
-      handleKeyDown: (view, event) => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-          const isInList = editor?.isActive('bulletList') || editor?.isActive('orderedList');
-          if (isInList && editor) {
-            // Проверяем, пустой ли текущий элемент списка
-            const isEmpty = editor.state.doc.textBetween(
-              editor.state.selection.from - 1,
-              editor.state.selection.from
-            ).length === 0;
+  const editorRef = useRef<HTMLDivElement>(null);
 
-            if (isEmpty) {
-              // Выходим из списка
-              editor.commands.liftListItem('listItem');
-            } else {
-              // Добавляем новый элемент списка
-              event.preventDefault();
-              editor.commands.splitListItem('listItem');
-            }
-            return true;
-          }
-          // Если не в списке, создаем новый блок
-          event.preventDefault();
-          onEnterPress?.();
-          return true;
-        }
-        if (event.key === 'Escape' && editor) {
-          editor.commands.unsetSuperscript();
-          editor.commands.unsetBold();
-          editor.commands.unsetItalic();
-          editor.commands.unsetUnderline();
-          return true;
-        }
-        return false;
-      },
-    }
-  });
-
-  // Делаем редактор доступным через ref
+  // Инициализация контента
   useEffect(() => {
-    const element = document.querySelector(`[data-block-id="${block.id}"]`);
-    if (element && editor) {
-      (element as any)._editor = editor;
+    if (!editorRef.current) return;
+    const content = block.content?.replace('<!---->', '') || '';
+    if (content !== editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = content;
     }
-  }, [editor, block.id]);
+  }, [block.content]);
 
-  // Применяем textCase при монтировании и изменении
+  // Обработка форматирования
   useEffect(() => {
-    if (!editor || !block.textCase) return;
-    
-    requestAnimationFrame(() => {
-      editor.commands.selectAll();
-      switch (block.textCase) {
-        case 'uppercase':
-          editor.chain().setUpperCase().run();
-          break;
-        case 'lowercase':
-          editor.chain().setLowerCase().run();
-          break;
-        case 'capitalize':
-          editor.chain().setCapitalize().run();
-          break;
-      }
-      editor.commands.focus('end');
+    if (!activeFormats || !editorRef.current) return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (!editorRef.current.contains(range.commonAncestorContainer)) return;
+    if (range.collapsed) return;
+
+    // Получаем выделенный текст
+    const selectedText = range.toString();
+    if (!selectedText) return;
+
+    // Форматируем текст
+    let formattedText = selectedText;
+    if (activeFormats.bold) formattedText = `<strong>${formattedText}</strong>`;
+    if (activeFormats.italic) formattedText = `<em>${formattedText}</em>`;
+    if (activeFormats.underline) formattedText = `<u>${formattedText}</u>`;
+    if (activeFormats.superscript) formattedText = `<sup>${formattedText}</sup>`;
+
+    // Удаляем старое выделение и вставляем новый текст
+    range.deleteContents();
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = formattedText;
+    const fragment = document.createDocumentFragment();
+    while (tempDiv.firstChild) {
+      fragment.appendChild(tempDiv.firstChild);
+    }
+    range.insertNode(fragment);
+
+    // Добавляем пробел после форматированного текста
+    const space = document.createTextNode(' ');
+    range.collapse(false);
+    range.insertNode(space);
+
+    // Перемещаем курсор после пробела
+    range.setStartAfter(space);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    // Обновляем контент
+    onUpdate({ content: editorRef.current.innerHTML + '<!---->' });
+
+    // Сбрасываем форматирование
+    onActiveFormatsChange?.({
+      bold: false,
+      italic: false,
+      underline: false,
+      superscript: false
     });
-  }, [editor, block.textCase]);
+  }, [activeFormats, onActiveFormatsChange, onUpdate]);
 
-  const handleTextCase = useCallback((type: 'upper' | 'lower' | 'capitalize') => {
-    if (!editor) return;
-    
-    const { from, to } = editor.state.selection;
-    const hasSelection = from !== to;
-    
-    // Сохраняем текущее выделение
-    const selection = { from, to };
-    
-    if (!hasSelection) {
-      editor.commands.selectAll();
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      onEnterPress?.();
     }
-    
-    switch (type) {
-      case 'upper':
-        if (hasSelection) {
-          editor.chain()
-            .focus()
-            .command(({ tr }) => {
-              const text = tr.doc.textBetween(selection.from, selection.to);
-              tr.insertText(text.toUpperCase(), selection.from, selection.to);
-              return true;
-            })
-            .run();
-        } else {
-          editor.chain().setUpperCase().run();
-          onUpdate({ textCase: 'uppercase' });
-        }
-        break;
-      case 'lower':
-        if (hasSelection) {
-          editor.chain()
-            .focus()
-            .command(({ tr }) => {
-              const text = tr.doc.textBetween(selection.from, selection.to);
-              tr.insertText(text.toLowerCase(), selection.from, selection.to);
-              return true;
-            })
-            .run();
-        } else {
-          editor.chain().setLowerCase().run();
-          onUpdate({ textCase: 'lowercase' });
-        }
-        break;
-      case 'capitalize':
-        if (hasSelection) {
-          editor.chain()
-            .focus()
-            .command(({ tr }) => {
-              const text = tr.doc.textBetween(selection.from, selection.to);
-              const capitalized = text.split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                .join(' ');
-              tr.insertText(capitalized, selection.from, selection.to);
-              return true;
-            })
-            .run();
-        } else {
-          editor.chain().setCapitalize().run();
-          onUpdate({ textCase: 'capitalize' });
-        }
-        break;
-    }
-    
-    editor.commands.focus();
-  }, [editor, onUpdate]);
+  }, [onEnterPress]);
 
-  // Синхронизируем внешние изменения с редактором
-  useEffect(() => {
-    if (editor && block.content !== editor.getHTML() + '<!---->') {
-      editor.commands.setContent(block.content?.replace('<!---->', '') || '');
-    }
-  }, [block.content, editor]);
+  const handleInput = useCallback(() => {
+    if (!editorRef.current) return;
+    onUpdate({ content: editorRef.current.innerHTML + '<!---->' });
+  }, [onUpdate]);
 
-  // Применяем активные форматы
-  useEffect(() => {
-    if (!editor || !activeFormats) return;
-
-    if (activeFormats.bold !== editor.isActive('bold')) {
-      editor.commands.toggleBold();
-    }
-    if (activeFormats.italic !== editor.isActive('italic')) {
-      editor.commands.toggleItalic();
-    }
-    if (activeFormats.underline !== editor.isActive('underline')) {
-      editor.commands.toggleUnderline();
-    }
-    if (activeFormats.superscript !== editor.isActive('superscript')) {
-      editor.commands.toggleSuperscript();
-    }
-  }, [activeFormats, editor]);
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  }, []);
 
   const getFontSize = () => {
     switch (block.type) {
@@ -305,17 +123,18 @@ export const TextBlock = ({
     }
   };
 
-  if (!editor) {
-    return null;
-  }
-
   return (
     <div
-      className={`w-full ${getFontSize()} ${getAlignment()}`}
+      ref={editorRef}
+      className={`w-full outline-none ${getFontSize()} ${getAlignment()}`}
+      contentEditable
+      suppressContentEditableWarning
+      onKeyDown={handleKeyDown}
+      onInput={handleInput}
+      onPaste={handlePaste}
       data-placeholder={block.type === 'CAPTION' ? 'Подпись' : block.type === 'P' ? 'Текст параграфа' : 'Заголовок'}
       data-block-id={block.id}
-    >
-      <EditorContent editor={editor} />
-    </div>
+      spellCheck={false}
+    />
   );
 }; 

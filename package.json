@@ -9,8 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@tiptap/extension-placeholder": "^2.10.3",
     "@tiptap/extension-superscript": "^2.10.3",
+    "@tiptap/extension-text-align": "^2.10.3",
     "@tiptap/extension-underline": "^2.10.3",
     "@tiptap/pm": "^2.10.3",
     "@tiptap/react": "^2.10.3",

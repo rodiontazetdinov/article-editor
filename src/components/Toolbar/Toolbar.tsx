@@ -5,7 +5,7 @@ import {
   MdFormatBold, MdFormatItalic, MdFormatUnderlined,
   MdSuperscript, MdFormatListBulleted, MdFormatListNumbered,
   MdFormatAlignLeft, MdFormatAlignCenter, MdFormatAlignRight,
-  MdFunctions
+  MdFunctions, MdFormatClear
 } from 'react-icons/md';
 import { BsTypeH1, BsTypeH2, BsTypeH3, BsParagraph } from 'react-icons/bs';
 import { TbAB, TbAB2, TbLetterCase } from 'react-icons/tb';
@@ -16,6 +16,7 @@ interface ToolbarProps {
   onTextAlignChange: (align: TTextAlign) => void;
   onTextCaseChange: (textCase: TTextCase) => void;
   onFormatClick: (format: 'bold' | 'italic' | 'underline' | 'superscript') => void;
+  onClearFormat: () => void;
   onListClick: (type: 'bullet' | 'number') => void;
   onFormulaClick: () => void;
   canUndo: boolean;
@@ -47,6 +48,7 @@ export const Toolbar = ({
   onTextAlignChange,
   onTextCaseChange,
   onFormatClick,
+  onClearFormat,
   onListClick,
   onFormulaClick,
   canUndo,
@@ -59,8 +61,8 @@ export const Toolbar = ({
     {
       label: 'История',
       buttons: [
-        { icon: MdUndo, label: 'Отменить', action: onUndo, isActive: !canUndo },
-        { icon: MdRedo, label: 'Повторить', action: onRedo, isActive: !canRedo }
+        { icon: MdUndo, label: 'Отменить (Ctrl+Z)', action: onUndo, isActive: !canUndo },
+        { icon: MdRedo, label: 'Повторить (Ctrl+Shift+Z)', action: onRedo, isActive: !canRedo }
       ]
     },
     {
@@ -86,27 +88,32 @@ export const Toolbar = ({
       buttons: [
         { 
           icon: MdFormatBold, 
-          label: 'Жирный', 
+          label: 'Жирный (Ctrl+B)', 
           action: () => onFormatClick('bold'),
-          isActive: activeFormats?.bold 
+          isActive: activeFormats?.bold
         },
         { 
           icon: MdFormatItalic, 
-          label: 'Курсив', 
+          label: 'Курсив (Ctrl+I)', 
           action: () => onFormatClick('italic'),
-          isActive: activeFormats?.italic 
+          isActive: activeFormats?.italic
         },
         { 
           icon: MdFormatUnderlined, 
-          label: 'Подчеркнутый', 
+          label: 'Подчеркнутый (Ctrl+U)', 
           action: () => onFormatClick('underline'),
-          isActive: activeFormats?.underline 
+          isActive: activeFormats?.underline
         },
         { 
           icon: MdSuperscript, 
           label: 'Степень', 
           action: () => onFormatClick('superscript'),
-          isActive: activeFormats?.superscript 
+          isActive: activeFormats?.superscript
+        },
+        {
+          icon: MdFormatClear,
+          label: 'Сбросить форматирование (Ctrl+\\)',
+          action: onClearFormat
         }
       ]
     },
