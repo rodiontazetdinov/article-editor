@@ -38,6 +38,9 @@ export const TextBlock = ({
     extensions: [
       StarterKit.configure({
         bold: false,
+        heading: {
+          levels: [1, 2, 3]
+        }
       }),
       Bold.configure({
         HTMLAttributes: {
@@ -74,6 +77,12 @@ export const TextBlock = ({
       }, 0);
     }
   }, [shouldFocus, editor]);
+
+  useEffect(() => {
+    if (editor && block.type.startsWith('H')) {
+      editor.chain().focus().setNode('heading', { level: parseInt(block.type[1]) }).run();
+    }
+  }, [editor, block.type]);
 
   const handleFormatClick = (format: 'bold' | 'italic' | 'underline' | 'superscript') => {
     if (!editor) return;
@@ -126,7 +135,9 @@ export const TextBlock = ({
           superscript: editor?.isActive('superscript') ?? false,
         }}
       />
-      <EditorContent editor={editor} />
+      <div className="bg-gray-50 rounded-lg p-2 focus-within:bg-white transition-colors duration-200">
+        <EditorContent editor={editor} className="outline-none" />
+      </div>
     </div>
   );
 }; 

@@ -1,6 +1,6 @@
 import { TArticleBlock } from '@/types/article';
 import { useState } from 'react';
-import { MdDelete, MdCode, MdAdd } from 'react-icons/md';
+import { MdDelete, MdCode, MdAdd, MdTitle, MdTextFields, MdFunctions, MdImage } from 'react-icons/md';
 
 interface BlockWrapperProps {
   block: TArticleBlock;
@@ -13,6 +13,14 @@ interface BlockWrapperProps {
 
 export const BlockWrapper = ({ block, onDelete, onAdd, blockControls, children }: BlockWrapperProps) => {
   const [showJson, setShowJson] = useState(false);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+
+  const blockTypes = [
+    { type: 'H1' as const, icon: MdTitle, label: 'Заголовок' },
+    { type: 'P' as const, icon: MdTextFields, label: 'Параграф' },
+    { type: 'FORMULA' as const, icon: MdFunctions, label: 'Формула' },
+    { type: 'IMAGE' as const, icon: MdImage, label: 'Изображение' },
+  ];
 
   return (
     <div className="relative mb-8">
@@ -41,13 +49,32 @@ export const BlockWrapper = ({ block, onDelete, onAdd, blockControls, children }
               >
                 <MdDelete className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => onAdd('P')}
-                className="p-1.5 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-500 transition-colors"
-                title="Добавить блок"
-              >
-                <MdAdd className="w-4 h-4" />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowAddMenu(!showAddMenu)}
+                  className="p-1.5 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-500 transition-colors"
+                  title="Добавить блок"
+                >
+                  <MdAdd className="w-4 h-4" />
+                </button>
+                {showAddMenu && (
+                  <div className="absolute left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px] z-50">
+                    {blockTypes.map((type) => (
+                      <button
+                        key={type.type}
+                        onClick={() => {
+                          onAdd(type.type);
+                          setShowAddMenu(false);
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
+                      >
+                        <type.icon className="w-4 h-4" />
+                        <span>{type.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
