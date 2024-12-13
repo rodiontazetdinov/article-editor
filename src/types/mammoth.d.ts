@@ -4,9 +4,16 @@ declare module 'mammoth' {
     buffer: Buffer;
   }
 
+  interface DocumentElement {
+    type: string;
+    children?: DocumentElement[];
+    preserveXml?: boolean;
+    [key: string]: any;
+  }
+
   interface MammothOptions {
     arrayBuffer: ArrayBuffer;
-    transformDocument?: (element: any) => any;
+    transformDocument?: (document: DocumentElement) => DocumentElement;
     convertImage?: (element: ConvertImageElement) => Promise<{ src: string }>;
   }
 
@@ -18,7 +25,7 @@ declare module 'mammoth' {
   interface Mammoth {
     convertToHtml(options: MammothOptions): Promise<ConversionResult>;
     transforms: {
-      paragraph: (transform: (element: any) => any) => any;
+      paragraph: (transform: (element: DocumentElement) => DocumentElement) => (document: DocumentElement) => DocumentElement;
     };
   }
 

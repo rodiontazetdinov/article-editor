@@ -1,6 +1,6 @@
 import { IFormulaBlock } from '@/types/article';
 import 'katex/dist/katex.min.css';
-import { InlineMath } from 'react-katex';
+import { InlineMath, BlockMath } from 'react-katex';
 
 interface FormulaBlockProps {
   block: IFormulaBlock;
@@ -17,8 +17,23 @@ export const FormulaBlock = ({ block, onUpdate }: FormulaBlockProps) => {
         placeholder="Введите LaTeX формулу"
         rows={2}
       />
-      <div className="p-4 flex justify-center">
-        <InlineMath math={block.content || ' '} />
+      <div className={`${block.inline ? 'p-2' : 'p-4'} flex justify-center`}>
+        {block.inline ? (
+          <InlineMath math={block.content || ' '} />
+        ) : (
+          <BlockMath math={block.content || ' '} />
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            checked={block.inline}
+            onChange={(e) => onUpdate({ inline: e.target.checked })}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          Строчная формула
+        </label>
       </div>
     </div>
   );
