@@ -294,11 +294,22 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     const block = blocks.find(b => b.id === selectedBlockId);
     if (!block) return;
     
-    if (block.type === 'P') {
-      setBlocks(blocks.map(b => 
-        b.id === selectedBlockId ? { ...b } : b
-      ));
+    let textCase: TTextCase;
+    switch (type) {
+      case 'upper':
+        textCase = 'uppercase';
+        break;
+      case 'lower':
+        textCase = 'lowercase';
+        break;
+      case 'capitalize':
+        textCase = 'capitalize';
+        break;
+      default:
+        textCase = 'normal';
     }
+    
+    updateBlock(selectedBlockId, { textCase });
   };
 
   const handleImport = (importedBlocks: TArticleBlock[]) => {

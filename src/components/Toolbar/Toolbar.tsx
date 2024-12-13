@@ -6,10 +6,12 @@ import {
   MdFormatBold, MdFormatItalic, MdFormatUnderlined,
   MdSuperscript, MdFormatListBulleted, MdFormatListNumbered,
   MdFormatAlignLeft, MdFormatAlignCenter, MdFormatAlignRight,
-  MdFunctions, MdFormatClear, MdKeyboardArrowDown
+  MdFunctions, MdFormatClear, MdKeyboardArrowDown,
+  MdTextFields, MdFormatSize
 } from 'react-icons/md';
-import { BsTypeH1, BsTypeH2, BsTypeH3, BsParagraph } from 'react-icons/bs';
+import { BsTypeH1, BsTypeH2, BsTypeH3, BsParagraph, BsTextareaT } from 'react-icons/bs';
 import { RiText } from 'react-icons/ri';
+import { TbLetterCase, TbLetterCaseUpper, TbLetterCaseLower } from 'react-icons/tb';
 
 interface ToolbarProps {
   onBlockTypeChange: (type: TBlockType) => void;
@@ -203,6 +205,34 @@ export const Toolbar = ({
           <MdRedo className="w-4 h-4" />
         </button>
       </div>
+
+      <div className="w-px h-5 bg-gray-200" />
+
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onTextCaseChange('uppercase')}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="ВЕРХНИЙ РЕГИСТР"
+        >
+          <TbLetterCaseUpper className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onTextCaseChange('lowercase')}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="нижний регистр"
+        >
+          <TbLetterCaseLower className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onTextCaseChange('capitalize')}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="Каждое Слово С Заглавной"
+        >
+          <TbLetterCase className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="w-px h-5 bg-gray-200" />
     </div>
   );
 }; 

@@ -41,6 +41,16 @@ export const TextBlock = ({
         bold: false,
         heading: {
           levels: [1, 2, 3]
+        },
+        bulletList: {
+          HTMLAttributes: {
+            class: 'list-disc ml-4'
+          }
+        },
+        orderedList: {
+          HTMLAttributes: {
+            class: 'list-decimal ml-4'
+          }
         }
       }),
       Bold.configure({
@@ -94,14 +104,43 @@ export const TextBlock = ({
     editorProps: {
       handleKeyDown: (view, event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
-          event.preventDefault();
-          onEnterPress?.();
-          return true;
+          const { $from } = view.state.selection;
+          const node = $from.node();
+          
+          const inList = hasParentNode(view.state, 'bulletList') || hasParentNode(view.state, 'orderedList');
+          
+          if (!inList) {
+            event.preventDefault();
+            onEnterPress?.();
+            return true;
+          }
+          
+          if ($from.parent.textContent.trim() === '') {
+            event.preventDefault();
+            editor?.chain().focus().liftListItem('listItem').run();
+            onEnterPress?.();
+            return true;
+          }
+          
+          return false;
         }
         return false;
       }
     }
   });
+
+  const hasParentNode = (state: any, nodeName: string) => {
+    const { $from } = state.selection;
+    let depth = $from.depth;
+    while (depth > 0) {
+      const node = $from.node(depth);
+      if (node.type.name === nodeName) {
+        return true;
+      }
+      depth--;
+    }
+    return false;
+  };
 
   useEffect(() => {
     if (shouldFocus && editor) {
@@ -165,12 +204,50 @@ export const TextBlock = ({
           });
         }}
         onTextAlignChange={(align) => editor?.chain().focus().setTextAlign(align).run()}
-        onTextCaseChange={(textCase) => {/* ... */}}
+        onTextCaseChange={(textCase) => {
+          if (!editor) return;
+          
+          const { from, to } = editor.state.selection;
+          const selectedText = editor.state.doc.textBetween(from, to);
+          
+          if (!selectedText) return;
+          
+          let newText = selectedText;
+          switch (textCase) {
+            case 'uppercase':
+              newText = selectedText.toUpperCase();
+              break;
+            case 'lowercase':
+              newText = selectedText.toLowerCase();
+              break;
+            case 'capitalize':
+              newText = selectedText
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+              break;
+          }
+          
+          editor
+            .chain()
+            .focus()
+            .deleteSelection()
+            .insertContent(newText)
+            .run();
+            
+          onUpdate({ textCase });
+        }}
         onFormatClick={handleFormatClick}
         onClearFormat={handleClearFormat}
         onListClick={(type) => {
-          if (type === 'bullet') editor?.chain().focus().toggleBulletList().run();
-          if (type === 'number') editor?.chain().focus().toggleOrderedList().run();
+          if (!editor) return;
+          if (type === 'bullet') {
+            editor.chain().focus().toggleBulletList().run();
+          }
+          if (type === 'number') {
+            editor.chain().focus().toggleOrderedList().run();
+          }
         }}
         onFormulaClick={() => {
           if (!editor) return;
