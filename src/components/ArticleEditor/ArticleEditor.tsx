@@ -372,9 +372,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
                         <span className="text-lg font-bold text-gray-400 group-hover:text-blue-500">H1</span>
                         <span className="text-gray-500 group-hover:text-blue-600">Заголовок</span>
                       </button>
-                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
+                      <span className="text-2xl font-bold text-gray-400">∨</span>
                       <button
                         onClick={() => addBlock('P')}
                         className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
