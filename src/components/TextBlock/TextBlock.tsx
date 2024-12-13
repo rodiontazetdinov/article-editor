@@ -114,7 +114,23 @@ export const TextBlock = ({
   return (
     <div className="space-y-4">
       <Toolbar
-        onBlockTypeChange={(type) => editor?.chain().focus().setNode(type).run()}
+        onBlockTypeChange={(type) => {
+          if (!editor) return;
+          
+          let newContent = '';
+          if (type.startsWith('H')) {
+            editor.chain().focus().setNode('heading', { level: parseInt(type[1]) }).run();
+            newContent = editor.getHTML();
+          } else if (type === 'P' || type === 'CAPTION') {
+            editor.chain().focus().setParagraph().run();
+            newContent = editor.getHTML();
+          }
+          
+          onUpdate({ 
+            type,
+            content: newContent
+          });
+        }}
         onTextAlignChange={(align) => editor?.chain().focus().setTextAlign(align).run()}
         onTextCaseChange={(textCase) => {/* ... */}}
         onFormatClick={handleFormatClick}
