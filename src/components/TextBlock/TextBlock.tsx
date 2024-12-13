@@ -219,7 +219,11 @@ export const TextBlock = ({
             content: newContent
           });
         }}
-        onTextAlignChange={(align) => editor?.chain().focus().setTextAlign(align).run()}
+        onTextAlignChange={(align) => {
+          if (!editor) return;
+          editor.chain().focus().setTextAlign(align).run();
+          onUpdate({ align });
+        }}
         onTextCaseChange={(textCase) => {
           if (!editor) return;
           
