@@ -175,6 +175,18 @@ export const Toolbar = ({
 
       <div className="flex items-center gap-1">
         <button
+          onClick={onFormulaClick}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="Вставить формулу"
+        >
+          <MdFunctions className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="w-px h-5 bg-gray-200" />
+
+      <div className="flex items-center gap-1">
+        <button
           onClick={onUndo}
           disabled={!canUndo}
           className="p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"

@@ -3,6 +3,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Superscript from '@tiptap/extension-superscript';
 import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
+import { Node } from '@tiptap/core';
 import { Toolbar } from '../Toolbar/Toolbar';
 import Bold from '@tiptap/extension-bold';
 import { TArticleBlock, ITextBlock } from '@/types/article';
@@ -52,6 +53,38 @@ export const TextBlock = ({
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
+      Node.create({
+        name: 'formula',
+        group: 'inline',
+        inline: true,
+        atom: true,
+        addAttributes() {
+          return {
+            inline: {
+              default: 'true'
+            },
+            source: {
+              default: 'latex'
+            },
+            content: {
+              default: ''
+            }
+          }
+        },
+        parseHTML() {
+          return [
+            {
+              tag: 'formula',
+            },
+          ]
+        },
+        renderHTML({ HTMLAttributes }) {
+          return ['formula', { 
+            class: 'inline-block px-2 py-0.5 mx-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100', 
+            ...HTMLAttributes 
+          }, HTMLAttributes.content]
+        }
+      })
     ],
     content: block.content,
     onUpdate: ({ editor }) => {
@@ -139,7 +172,27 @@ export const TextBlock = ({
           if (type === 'bullet') editor?.chain().focus().toggleBulletList().run();
           if (type === 'number') editor?.chain().focus().toggleOrderedList().run();
         }}
-        onFormulaClick={() => {/* ... */}}
+        onFormulaClick={() => {
+          if (!editor) return;
+          
+          const { from, to } = editor.state.selection;
+          const selectedText = editor.state.doc.textBetween(from, to);
+          
+          if (!selectedText) return;
+          
+          editor.chain()
+            .focus()
+            .deleteSelection()
+            .insertContent({
+              type: 'formula',
+              attrs: {
+                inline: 'true',
+                source: 'latex',
+                content: selectedText
+              }
+            })
+            .run();
+        }}
         canUndo={editor?.can().undo() ?? false}
         canRedo={editor?.can().redo() ?? false}
         onUndo={() => editor?.chain().focus().undo().run()}
