@@ -1,46 +1,43 @@
-export type TBlockType = 'H1' | 'H2' | 'H3' | 'P' | 'CAPTION' | 'RENDER' | 'FORMULA' | 'IMAGE';
-export type TTextAlign = 'left' | 'center' | 'right';
+export type TBlockType = 'H1' | 'H2' | 'H3' | 'P' | 'FORMULA' | 'IMAGE' | 'CAPTION';
+export type TTextAlign = 'left' | 'center' | 'right' | 'justify';
 export type TTextCase = 'normal' | 'uppercase' | 'lowercase' | 'capitalize';
 
-export interface IBaseBlock {
+interface BaseBlock {
   id: string;
-  indent: number;
   type: TBlockType;
+  indent: number;
   modified: string;
-  align?: TTextAlign;
-  textCase?: TTextCase;
   $new?: boolean;
 }
 
-export interface ITextBlock extends IBaseBlock {
+export interface ITextBlock extends BaseBlock {
   type: 'H1' | 'H2' | 'H3' | 'P' | 'CAPTION';
   content: string;
+  align?: TTextAlign;
+  textCase?: TTextCase;
 }
 
-export interface IFormulaBlock extends IBaseBlock {
+export interface IFormulaBlock extends BaseBlock {
   type: 'FORMULA';
-  source: 'latex';
+  source: 'latex' | 'math';
   content: string;
-  inline?: boolean;
+  latex?: string;
+  ref?: string;
 }
 
-export interface IImageBlock extends IBaseBlock {
+export interface IImageBlock extends BaseBlock {
   type: 'IMAGE';
   variant: string;
   images: string[];
   src: string;
 }
 
-export interface IRenderBlock extends IBaseBlock {
-  type: 'RENDER';
+export interface IRenderBlock extends BaseBlock {
+  type: TBlockType;
 }
 
 export type TArticleBlock = ITextBlock | IFormulaBlock | IImageBlock | IRenderBlock;
 
 export interface IArticle {
   blocks: TArticleBlock[];
-  history?: {
-    past: TArticleBlock[][];
-    future: TArticleBlock[][];
-  };
 } 

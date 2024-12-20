@@ -13,6 +13,7 @@ import { JsonPreview } from '../JsonPreview/JsonPreview';
 import { ArticlePreview } from '../ArticlePreview/ArticlePreview';
 import { MdPreview, MdClose } from 'react-icons/md';
 import { ImportDocument } from '../ImportDocument/ImportDocument';
+import { Formula } from '../Formula/Formula';
 import {
   DndContext,
   closestCenter,
@@ -47,12 +48,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
   const [history, setHistory] = useState<{ past: TArticleBlock[][]; future: TArticleBlock[][] }>({ past: [], future: [] });
-  const [activeFormats, setActiveFormats] = useState<{
-    bold: boolean;
-    italic: boolean;
-    underline: boolean;
-    superscript: boolean;
-  }>({
+  const [activeFormats, setActiveFormats] = useState<FormatState>({
     bold: false,
     italic: false,
     underline: false,
@@ -102,7 +98,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     onChange?.({ blocks: next });
   }, [blocks, history, onChange]);
 
-  const createBlock = (type: TArticleBlock['type']): TArticleBlock => {
+  const createBlock = (type: TBlockType): TArticleBlock => {
     const baseBlock = {
       id: nanoid(10),
       indent: 0,
@@ -123,37 +119,9 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   };
 
   const addBlock = (type: TBlockType, afterId?: string) => {
-    const newBlock: TArticleBlock = type === 'FORMULA' 
-      ? {
-          id: nanoid(10),
-          indent: 0,
-          type,
-          modified: new Date().toISOString(),
-          content: '',
-          source: 'latex',
-          $new: true,
-        }
-      : type === 'IMAGE'
-      ? {
-          id: nanoid(10),
-          indent: 0,
-          type,
-          modified: new Date().toISOString(),
-          variant: '1',
-          images: [],
-          src: '',
-          $new: true,
-        }
-      : {
-          id: nanoid(10),
-          indent: 0,
-          type,
-          modified: new Date().toISOString(),
-          content: '',
-          $new: true,
-        };
-
+    const newBlock = createBlock(type);
     let newBlocks: TArticleBlock[];
+    
     if (afterId) {
       const index = blocks.findIndex(b => b.id === afterId);
       newBlocks = [
@@ -173,8 +141,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   const updateBlock = (id: string, updates: Partial<TArticleBlock>) => {
     const newBlocks = blocks.map(block => {
       if (block.id !== id) return block;
-      const updatedBlock = { ...block, ...updates, modified: new Date().toISOString() };
-      return updatedBlock as TArticleBlock;
+      return { ...block, ...updates, modified: new Date().toISOString() };
     });
     updateHistory(newBlocks);
   };
@@ -202,122 +169,29 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     }
   };
 
-  const handleFormatClick = (format: 'bold' | 'italic' | 'underline' | 'superscript') => {
-    setActiveFormats(prev => ({
-      ...prev,
-      bold: format === 'bold' ? true : false,
-      italic: format === 'italic' ? true : false,
-      underline: format === 'underline' ? true : false,
-      superscript: format === 'superscript' ? true : false
-    }));
-  };
-
-  const handleActiveFormatsChange = (formats: typeof activeFormats) => {
+  const handleActiveFormatsChange = (formats: FormatState) => {
     setActiveFormats(formats);
   };
 
-  const handleListClick = (type: 'bullet' | 'number') => {
-    if (!selectedBlockId) return;
-    
-    const block = blocks.find(b => b.id === selectedBlockId);
-    if (!block || block.type !== 'P') return;
-
-    const blockElement = document.querySelector(`[data-block-id="${selectedBlockId}"]`);
-    if (!blockElement) return;
-
-    const editor = (blockElement as any)._editor;
-    if (!editor) return;
-
-    if (type === 'bullet') {
-      editor.chain().focus().toggleBulletList().run();
-    } else {
-      editor.chain().focus().toggleOrderedList().run();
-    }
-  };
-
-  const handleFormulaClick = () => {
-    if (!selectedBlockId) return;
-    
-    const blockElement = document.querySelector(`[data-block-id="${selectedBlockId}"]`);
-    if (!blockElement) return;
-
-    const editor = (blockElement as any)._editor;
-    if (!editor) return;
-
-    const selection = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(selection.from, selection.to);
-    
-    editor
-      .chain()
-      .focus()
-      .insertContent({
-        type: 'formula',
-        attrs: {
-          inline: 'true',
-          source: 'latex',
-          content: selectedText || 'формула'
-        }
-      })
-      .run();
-  };
-
-  const renderBlock = (block: TArticleBlock) => {
-    switch (block.type) {
-      case 'H1':
-      case 'H2':
-      case 'H3':
-      case 'P':
-      case 'CAPTION':
-        return (
-          <TextBlock 
-            block={block} 
-            onUpdate={(updates) => updateBlock(block.id, updates)}
-            onDelete={() => deleteBlock(block.id)}
-            onAdd={(type) => addBlock(type, block.id)}
-            activeFormats={selectedBlockId === block.id ? activeFormats : undefined}
-            onActiveFormatsChange={handleActiveFormatsChange}
-            onEnterPress={() => addBlock('P', block.id)}
-          />
-        );
-      case 'FORMULA':
-        return <FormulaBlock block={block} onUpdate={(updates) => updateBlock(block.id, updates)} />;
-      case 'IMAGE':
-        return <ImageBlock block={block} onUpdate={(updates) => updateBlock(block.id, updates)} />;
-      default:
-        return null;
-    }
-  };
-
-  const handleTextCase = (type: 'upper' | 'lower' | 'capitalize') => {
-    if (!selectedBlockId) return;
-    
-    const block = blocks.find(b => b.id === selectedBlockId);
-    if (!block) return;
-    
-    let textCase: TTextCase;
-    switch (type) {
-      case 'upper':
-        textCase = 'uppercase';
-        break;
-      case 'lower':
-        textCase = 'lowercase';
-        break;
-      case 'capitalize':
-        textCase = 'capitalize';
-        break;
-      default:
-        textCase = 'normal';
-    }
-    
-    updateBlock(selectedBlockId, { textCase });
-  };
-
   const handleImport = (importedBlocks: TArticleBlock[]) => {
-    updateHistory([...blocks, ...importedBlocks]);
-  };
-
-  const handleClearFormat = () => {
-    // Реализация будет в TextBlock
+    const processedBlocks = importedBlocks.map(block => {
+      if (block.type === 'FORMULA') {
+        return {
+          ...block,
+          id: nanoid(10),
+          modified: new Date().toISOString(),
+          indent: 0,
+        };
+      }
+      return {
+        ...block,
+        id: nanoid(10),
+        modified: new Date().toISOString(),
+        indent: 0,
+      };
+    });
+    
+    updateHistory([...blocks, ...processedBlocks]);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -334,28 +208,56 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     }
   };
 
+  const renderBlock = (block: TArticleBlock) => {
+    switch (block.type) {
+      case 'H1':
+      case 'H2':
+      case 'H3':
+      case 'P':
+      case 'CAPTION':
+        if ('content' in block) {
+          return (
+            <TextBlock 
+              block={block as ITextBlock} 
+              onUpdate={(updates) => updateBlock(block.id, updates)}
+              onDelete={() => deleteBlock(block.id)}
+              onAdd={(type) => addBlock(type, block.id)}
+              activeFormats={selectedBlockId === block.id ? activeFormats : undefined}
+              onActiveFormatsChange={handleActiveFormatsChange}
+              onEnterPress={() => addBlock('P', block.id)}
+            />
+          );
+        }
+        return null;
+      case 'FORMULA':
+        if ('source' in block && 'content' in block) {
+          return (
+            <div className="my-4">
+              <Formula
+                source={block.source}
+                content={block.content}
+                reference={block.ref}
+              />
+            </div>
+          );
+        }
+        return <FormulaBlock block={block as IFormulaBlock} onUpdate={(updates) => updateBlock(block.id, updates)} />;
+      case 'IMAGE':
+        if ('variant' in block && 'images' in block && 'src' in block) {
+          return <ImageBlock block={block as IImageBlock} onUpdate={(updates) => updateBlock(block.id, updates)} />;
+        }
+        return null;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto py-8">
         <div className="flex justify-between items-center mb-4 px-4">
           <ImportDocument onImport={handleImport} />
         </div>
-        {/* Временно скрываем верхний тулбар
-        <Toolbar
-          onBlockTypeChange={handleBlockTypeChange}
-          onTextAlignChange={handleTextAlignChange}
-          onTextCaseChange={handleTextCaseChange}
-          onFormatClick={handleFormatClick}
-          onClearFormat={handleClearFormat}
-          onListClick={handleListClick}
-          onFormulaClick={handleFormulaClick}
-          canUndo={history.past.length > 0}
-          canRedo={history.future.length > 0}
-          onUndo={undo}
-          onRedo={redo}
-          activeFormats={activeFormats}
-        />
-        */}
         <div className="p-4">
           <div>
             {blocks.length === 0 ? (
