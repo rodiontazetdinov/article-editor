@@ -23,6 +23,7 @@ export interface IFormulaBlock extends BaseBlock {
   content: string;
   latex?: string;
   ref?: string;
+  inline?: boolean;
 }
 
 export interface IImageBlock extends BaseBlock {
