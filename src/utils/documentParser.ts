@@ -1,6 +1,7 @@
 import { MathMLToLaTeX } from 'mathml-to-latex';
 import mammoth from 'mammoth-plus';
 import { TArticleBlock } from '@/types/article';
+import { convertMathMLToLaTeX } from './mathMLParser';
 
 const mammothOptions = {
   styleMap: [
@@ -12,30 +13,7 @@ const mammothOptions = {
 // Конвертация MathML в LaTeX
 function getLatex(mathml: string): string {
   try {
-    // Создаем временный div для парсинга HTML
-    const div = document.createElement('div');
-    div.innerHTML = mathml;
-    
-    // Находим элемент math
-    const mathElement = div.querySelector('math');
-    if (!mathElement) {
-      console.error('No math element found in:', mathml);
-      return mathml;
-    }
-
-    // Преобразуем в LaTeX
-    const latex = MathMLToLaTeX.convert(mathElement.outerHTML);
-    return latex
-      .replace(/\\text{⇒}/g, '\\Rightarrow')
-      .replace(/\\text{λ}/g, '\\lambda')
-      .replace(/\\text{ς}/g, '\\varsigma')
-      .replace(/\\text{σ}/g, '\\sigma')
-      .replace(/\\text{β}/g, '\\beta')
-      .replace(/\\text{α}/g, '\\alpha')
-      .replace(/\\text{μ}/g, '\\mu')
-      .replace(/\\nbsp/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return convertMathMLToLaTeX(mathml);
   } catch (err) {
     console.error('Error converting MathML to LaTeX:', err);
     return mathml;
@@ -101,8 +79,6 @@ async function htmlToBlocks(html: string) {
                                 mathMatch.includes('class="formula-block"') ||
                                 mathMatch.includes('style="display:block"');
 
-            const latex = getLatex(mathMatch);
-
             if (isDisplayMath) {
               // Если это блочная формула, разбиваем текст на части
               const parts = processedContent.split(mathMatch);
@@ -118,22 +94,31 @@ async function htmlToBlocks(html: string) {
                 });
               }
 
-              // Добавляем формулу как отдельный блок
-              blocks.push({
-                type: 'FORMULA',
-                source: 'latex',
-                content: latex,
-                inline: false,
-                indent: 0,
-                modified: new Date().toISOString(),
-                id: `formula-${i}-${blocks.length}`
-              });
+              // Получаем LaTeX формулы
+              let latex = getLatex(mathMatch);
+              
+              // Проверяем наличие нескольких формул, разделенных \\
+              const formulas = latex.split('\\\\').map(f => f.trim());
+              
+              for (const formula of formulas) {
+                if (formula) {
+                  blocks.push({
+                    type: 'FORMULA',
+                    source: 'latex',
+                    content: formula,
+                    inline: false,
+                    indent: 0,
+                    modified: new Date().toISOString(),
+                    id: `formula-${i}-${blocks.length}`
+                  });
+                }
+              }
 
               processedContent = parts[1] || '';
               hasBlockFormula = true;
             } else {
               // Если это инлайновая формула, заменяем её на LaTeX в тексте
-              processedContent = processedContent.replace(mathMatch, `$${latex}$`);
+              processedContent = processedContent.replace(mathMatch, `$${getLatex(mathMatch)}$`);
             }
           }
 

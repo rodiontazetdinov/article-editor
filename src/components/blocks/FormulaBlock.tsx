@@ -16,6 +16,18 @@ export const FormulaBlock = ({ block, onUpdate }: FormulaBlockProps) => {
     onUpdate({ inline: e.target.checked });
   };
 
+  // Разделяем формулу и номер
+  const getFormulaAndNumber = (content: string) => {
+    if (content.includes('#')) {
+      const [formula, numberPart] = content.split('#').map(part => part.trim());
+      const number = numberPart.replace(/[()]/g, '').trim();
+      return { formula, number };
+    }
+    return { formula: content, number: null };
+  };
+
+  const { formula, number } = getFormulaAndNumber(block.content);
+
   return (
     <div className="w-full space-y-2">
       <textarea
@@ -25,11 +37,56 @@ export const FormulaBlock = ({ block, onUpdate }: FormulaBlockProps) => {
         placeholder="Введите LaTeX формулу"
         rows={2}
       />
-      <div className={`${block.inline ? 'p-2' : 'p-4'} flex justify-center bg-gray-50 rounded`}>
+      <div className={`
+        ${block.inline ? 'p-2' : 'p-4'} 
+        bg-gray-50 rounded
+        ${!block.inline ? 'formula-container' : ''}
+      `}>
+        <style jsx global>{`
+          .formula-container {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 2rem;
+            align-items: center;
+            width: 100%;
+            overflow: hidden;
+          }
+          .formula-container .formula {
+            overflow-x: auto;
+            overflow-y: hidden;
+            margin: 0;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+          }
+          .formula-container .formula::-webkit-scrollbar {
+            display: none;
+          }
+          .formula-container .formula .katex-display {
+            margin: 0;
+            padding: 0;
+          }
+          .formula-container .formula .katex-display > .katex {
+            white-space: nowrap;
+          }
+          .formula-container .number {
+            font-size: 1.2em;
+            color: #333;
+            white-space: nowrap;
+          }
+        `}</style>
         {block.inline ? (
-          <InlineMath math={block.content || ' '} />
+          <InlineMath math={formula || ' '} />
         ) : (
-          <BlockMath math={block.content || ' '} />
+          <>
+            <div className="formula">
+              <BlockMath math={formula || ' '} />
+            </div>
+            {number && (
+              <div className="number">
+                ({number})
+              </div>
+            )}
+          </>
         )}
       </div>
       <div className="flex items-center gap-2">
