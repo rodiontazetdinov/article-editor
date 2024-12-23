@@ -16,14 +16,39 @@ export const FormulaBlock = ({ block, onUpdate }: FormulaBlockProps) => {
     onUpdate({ inline: e.target.checked });
   };
 
+  // Предварительная обработка LaTeX формулы
+  const preprocessLatex = (latex: string) => {
+    return latex
+      // Исправляем пробелы в командах
+      .replace(/\\left\s*{/g, '\\left\\{')
+      .replace(/\\right\s*}/g, '\\right\\}')
+      .replace(/\\left\s*\(/g, '\\left(')
+      .replace(/\\right\s*\)/g, '\\right)')
+      .replace(/\\left\s*\[/g, '\\left[')
+      .replace(/\\right\s*\]/g, '\\right]')
+      // Исправляем overset
+      .replace(/\\overset\s*{/g, '\\overset{')
+      .replace(/\\overset\s*{\\overline}/g, '\\overline')
+      .replace(/\\overset\s*{\\cdot}/g, '\\dot')
+      // Исправляем exp
+      .replace(/exp\s*⁡/g, '\\exp')
+      // Исправляем греческие буквы
+      .replace(/\\alpha\s+\\overset/g, '\\alpha\\overset')
+      .replace(/\\beta\s+\\right/g, '\\beta\\right')
+      .replace(/\\sigma\s+\\alpha/g, '\\sigma\\alpha')
+      // Исправляем множественные пробелы
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
   // Разделяем формулу и номер
   const getFormulaAndNumber = (content: string) => {
     if (content.includes('#')) {
       const [formula, numberPart] = content.split('#').map(part => part.trim());
       const number = numberPart.replace(/[()]/g, '').trim();
-      return { formula, number };
+      return { formula: preprocessLatex(formula), number };
     }
-    return { formula: content, number: null };
+    return { formula: preprocessLatex(content), number: null };
   };
 
   const { formula, number } = getFormulaAndNumber(block.content);
