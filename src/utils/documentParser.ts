@@ -20,6 +20,24 @@ function getLatex(mathml: string): string {
   }
 }
 
+// Рекурсивный поиск изображений в элементе
+function findImages(element: Element): HTMLImageElement[] {
+  const images: HTMLImageElement[] = [];
+  
+  // Если это img элемент, добавляем его
+  if (element.tagName.toLowerCase() === 'img') {
+    images.push(element as HTMLImageElement);
+    return images;
+  }
+  
+  // Рекурсивно ищем во всех дочерних элементах
+  for (const child of Array.from(element.children)) {
+    images.push(...findImages(child));
+  }
+  
+  return images;
+}
+
 // Парсинг HTML в блоки
 async function htmlToBlocks(html: string) {
   const parser = new DOMParser();
@@ -46,7 +64,7 @@ async function htmlToBlocks(html: string) {
         continue;
       }
 
-      // Обработка изображений
+      // Обработка изображений на верхнем уровне
       if (tagName === 'img') {
         const imgElement = element as HTMLImageElement;
         if (imgElement.src) {
@@ -65,82 +83,135 @@ async function htmlToBlocks(html: string) {
 
       // Обработка параграфов и формул
       if (tagName === 'p') {
-        const content = element.innerHTML;
-        const mathRegex = /<math[^>]*>[\s\S]*?<\/math>/g;
-        const mathMatches = content.match(mathRegex);
-
-        if (mathMatches) {
-          let processedContent = content;
-          let hasBlockFormula = false;
-
-          for (const mathMatch of mathMatches) {
-            const isDisplayMath = mathMatch.includes('display="block"') || 
-                                mathMatch.includes('mode="display"') ||
-                                mathMatch.includes('class="formula-block"') ||
-                                mathMatch.includes('style="display:block"');
-
-            if (isDisplayMath) {
-              // Если это блочная формула, разбиваем текст на части
-              const parts = processedContent.split(mathMatch);
-              
-              // Добавляем текст до формулы, если он есть
-              if (parts[0].trim()) {
-                blocks.push({
-                  type: 'P',
-                  content: parts[0].trim(),
-                  indent: 0,
-                  modified: new Date().toISOString(),
-                  id: `p-${i}-${blocks.length}`
-                });
-              }
-
-              // Получаем LaTeX формулы
-              let latex = getLatex(mathMatch);
-              
-              // Проверяем наличие нескольких формул, разделенных \\
-              const formulas = latex.split('\\\\').map(f => f.trim());
-              
-              for (const formula of formulas) {
-                if (formula) {
-                  blocks.push({
-                    type: 'FORMULA',
-                    source: 'latex',
-                    content: formula,
-                    inline: false,
-                    indent: 0,
-                    modified: new Date().toISOString(),
-                    id: `formula-${i}-${blocks.length}`
-                  });
-                }
-              }
-
-              processedContent = parts[1] || '';
-              hasBlockFormula = true;
-            } else {
-              // Если это инлайновая формула, заменяем её на LaTeX в тексте
-              processedContent = processedContent.replace(mathMatch, `$${getLatex(mathMatch)}$`);
+        // Сначала ищем все изображения внутри параграфа
+        const images = findImages(element);
+        
+        // Если есть изображения, разбиваем параграф на части
+        if (images.length > 0) {
+          let content = element.innerHTML;
+          
+          for (let j = 0; j < images.length; j++) {
+            const img = images[j];
+            const imgHtml = img.outerHTML;
+            const parts = content.split(imgHtml);
+            
+            // Добавляем текст до изображения, если он есть
+            if (parts[0].trim()) {
+              blocks.push({
+                type: 'P',
+                content: parts[0].trim(),
+                indent: 0,
+                modified: new Date().toISOString(),
+                id: `p-${i}-${j}`
+              });
             }
+            
+            // Добавляем изображение как отдельный блок
+            if (img.src) {
+              blocks.push({
+                type: 'IMAGE',
+                variant: '1',
+                images: [],
+                src: img.src,
+                indent: 0,
+                modified: new Date().toISOString(),
+                id: `img-${i}-${j}`
+              });
+            }
+            
+            // Обновляем контент для следующей итерации
+            content = parts[1] || '';
           }
-
+          
           // Добавляем оставшийся текст, если он есть
-          if (processedContent.trim() && !hasBlockFormula) {
+          if (content.trim()) {
             blocks.push({
               type: 'P',
-              content: processedContent.trim(),
+              content: content.trim(),
               indent: 0,
               modified: new Date().toISOString(),
-              id: `p-${i}-${blocks.length}`
+              id: `p-${i}-final`
             });
           }
         } else {
-          // Обычный параграф без формул
-          blocks.push({
-            type: 'P',
-            content: content,
-            indent: 0,
-            modified: new Date().toISOString(),
-            id: `p-${i}`
-          });
+          // Если нет изображений, обрабатываем формулы как раньше
+          const content = element.innerHTML;
+          const mathRegex = /<math[^>]*>[\s\S]*?<\/math>/g;
+          const mathMatches = content.match(mathRegex);
+
+          if (mathMatches) {
+            let processedContent = content;
+            let hasBlockFormula = false;
+
+            for (const mathMatch of mathMatches) {
+              const isDisplayMath = mathMatch.includes('display="block"') || 
+                                  mathMatch.includes('mode="display"') ||
+                                  mathMatch.includes('class="formula-block"') ||
+                                  mathMatch.includes('style="display:block"');
+
+              if (isDisplayMath) {
+                // Если это блочная формула, разбиваем текст на части
+                const parts = processedContent.split(mathMatch);
+                
+                // Добавляем текст до формулы, если он есть
+                if (parts[0].trim()) {
+                  blocks.push({
+                    type: 'P',
+                    content: parts[0].trim(),
+                    indent: 0,
+                    modified: new Date().toISOString(),
+                    id: `p-${i}-${blocks.length}`
+                  });
+                }
+
+                // Получаем LaTeX формулы
+                let latex = getLatex(mathMatch);
+                
+                // Проверяем наличие нескольких формул, разделенных \\
+                const formulas = latex.split('\\\\').map(f => f.trim());
+                
+                for (const formula of formulas) {
+                  if (formula) {
+                    blocks.push({
+                      type: 'FORMULA',
+                      source: 'latex',
+                      content: formula,
+                      inline: false,
+                      indent: 0,
+                      modified: new Date().toISOString(),
+                      id: `formula-${i}-${blocks.length}`
+                    });
+                  }
+                }
+
+                processedContent = parts[1] || '';
+                hasBlockFormula = true;
+              } else {
+                // Если это инлайновая формула, заменяем её на LaTeX в тексте
+                processedContent = processedContent.replace(mathMatch, `$${getLatex(mathMatch)}$`);
+              }
+            }
+
+            // Добавляем оставшийся текст, если он есть
+            if (processedContent.trim() && !hasBlockFormula) {
+              blocks.push({
+                type: 'P',
+                content: processedContent.trim(),
+                indent: 0,
+                modified: new Date().toISOString(),
+                id: `p-${i}-${blocks.length}`
+              });
+            }
+          } else {
+            // Обычный параграф без формул
+            blocks.push({
+              type: 'P',
+              content: content,
+              indent: 0,
+              modified: new Date().toISOString(),
+              id: `p-${i}`
+            });
+          }
         }
       }
     }
