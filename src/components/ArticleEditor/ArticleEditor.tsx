@@ -11,7 +11,7 @@ import { AddBlockButton } from '../blocks/AddBlockButton';
 import { Toolbar } from '../Toolbar/Toolbar';
 import { JsonPreview } from '../JsonPreview/JsonPreview';
 import { ArticlePreview } from '../ArticlePreview/ArticlePreview';
-import { MdPreview, MdClose } from 'react-icons/md';
+import { MdPreview, MdClose, MdArticle } from 'react-icons/md';
 import { ImportDocument } from '../ImportDocument/ImportDocument';
 import { Formula } from '../Formula/Formula';
 import {
@@ -30,6 +30,7 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { SortableBlock } from '../blocks/SortableBlock';
+import { ActiveBlockToolbar } from '../Toolbar/ActiveBlockToolbar';
 
 interface ArticleEditorProps {
   initialData?: IArticle;
@@ -47,7 +48,15 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   const [blocks, setBlocks] = useState<TArticleBlock[]>(initialData?.blocks || []);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
-  const [history, setHistory] = useState<{ past: TArticleBlock[][]; future: TArticleBlock[][] }>({ past: [], future: [] });
+  const [history, setHistory] = useState<{
+    past: TArticleBlock[][];
+    present: TArticleBlock[];
+    future: TArticleBlock[][];
+  }>({
+    past: [],
+    present: [],
+    future: []
+  });
   const [activeFormats, setActiveFormats] = useState<FormatState>({
     bold: false,
     italic: false,
@@ -65,38 +74,43 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
 
   const updateHistory = useCallback((newBlocks: TArticleBlock[]) => {
     setHistory(prev => ({
-      past: [...prev.past, blocks],
+      past: [...prev.past, prev.present],
+      present: newBlocks,
       future: []
     }));
     setBlocks(newBlocks);
     onChange?.({ blocks: newBlocks });
   }, [blocks, onChange]);
 
-  const undo = useCallback(() => {
+  const handleUndo = () => {
     if (history.past.length === 0) return;
+    
     const previous = history.past[history.past.length - 1];
-    const newPast = history.past.slice(0, -1);
+    const newPast = history.past.slice(0, history.past.length - 1);
     
     setHistory({
       past: newPast,
-      future: [blocks, ...history.future]
+      present: previous,
+      future: [history.present, ...history.future]
     });
+    
     setBlocks(previous);
-    onChange?.({ blocks: previous });
-  }, [blocks, history, onChange]);
+  };
 
-  const redo = useCallback(() => {
+  const handleRedo = () => {
     if (history.future.length === 0) return;
+    
     const next = history.future[0];
     const newFuture = history.future.slice(1);
     
     setHistory({
-      past: [...history.past, blocks],
+      past: [...history.past, history.present],
+      present: next,
       future: newFuture
     });
+    
     setBlocks(next);
-    onChange?.({ blocks: next });
-  }, [blocks, history, onChange]);
+  };
 
   const createBlock = (type: TBlockType): TArticleBlock => {
     const baseBlock = {
@@ -252,14 +266,90 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     }
   };
 
+  const handleFormatClick = (format: 'bold' | 'italic' | 'underline' | 'superscript') => {
+    const block = blocks.find(b => b.id === selectedBlockId);
+    if (!block || !('content' in block)) return;
+
+    setActiveFormats(prev => ({
+      ...prev,
+      [format]: !prev[format]
+    }));
+  };
+
+  const handleClearFormat = () => {
+    const block = blocks.find(b => b.id === selectedBlockId);
+    if (!block || !('content' in block)) return;
+
+    setActiveFormats({
+      bold: false,
+      italic: false,
+      underline: false,
+      superscript: false
+    });
+
+    updateBlock(block.id, {
+      align: 'left',
+      textCase: 'normal'
+    });
+  };
+
+  const handleListClick = (type: 'bullet' | 'number') => {
+    const block = blocks.find(b => b.id === selectedBlockId);
+    if (!block || !('content' in block)) return;
+
+    updateBlock(block.id, {
+      content: block.content
+    });
+  };
+
+  const handleFormulaClick = () => {
+    const block = blocks.find(b => b.id === selectedBlockId);
+    if (!block || !('content' in block)) return;
+
+    const newBlock: TArticleBlock = {
+      id: nanoid(10),
+      type: 'FORMULA',
+      source: 'latex',
+      content: '',
+      indent: 0,
+      modified: new Date().toISOString(),
+      $new: true
+    };
+
+    const blockIndex = blocks.findIndex(b => b.id === selectedBlockId);
+    const newBlocks = [
+      ...blocks.slice(0, blockIndex + 1),
+      newBlock,
+      ...blocks.slice(blockIndex + 1)
+    ];
+
+    updateHistory(newBlocks);
+    setSelectedBlockId(newBlock.id);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-8">
+      <ActiveBlockToolbar
+        blockId={selectedBlockId}
+        onBlockTypeChange={handleBlockTypeChange}
+        onTextAlignChange={handleTextAlignChange}
+        onTextCaseChange={handleTextCaseChange}
+        onFormatClick={handleFormatClick}
+        onClearFormat={handleClearFormat}
+        onListClick={handleListClick}
+        onFormulaClick={handleFormulaClick}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        activeFormats={activeFormats}
+      />
+      <div className="max-w-screen-xl mx-auto">
         <div className="flex justify-between items-center mb-4 px-4">
           <ImportDocument onImport={handleImport} />
         </div>
         <div className="p-4">
-          <div>
+          <div className="bg-white rounded-lg shadow-sm">
             {blocks.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <div className="max-w-2xl mx-auto space-y-6">
@@ -318,31 +408,31 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
             )}
           </div>
         </div>
-        <div className="fixed bottom-4 right-4 z-50 flex gap-2">
-          <button
-            onClick={() => setShowPreview(true)}
-            className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-full shadow-lg transition-all hover:scale-105"
-            title="Предпросмотр статьи"
-          >
-            <MdPreview className="w-6 h-6" />
-          </button>
-          <JsonPreview blocks={blocks} />
-        </div>
-        {showPreview && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 z-50 overflow-auto">
-            <div className="bg-gray-100 rounded-lg shadow-xl w-full min-h-screen relative">
-              <button
-                onClick={() => setShowPreview(false)}
-                className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
-                title="Закрыть предпросмотр"
-              >
-                <MdClose className="w-6 h-6" />
-              </button>
-              <ArticlePreview blocks={blocks} />
-            </div>
-          </div>
-        )}
       </div>
+      <div className="fixed bottom-4 right-4 z-50 flex gap-2">
+        <button
+          onClick={() => setShowPreview(true)}
+          className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-full shadow-lg transition-all hover:scale-105"
+          title="Предпросмотр статьи"
+        >
+          <MdPreview className="w-6 h-6" />
+        </button>
+        <JsonPreview blocks={blocks} />
+      </div>
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 z-50 overflow-auto">
+          <div className="bg-gray-100 rounded-lg shadow-xl w-full min-h-screen relative">
+            <button
+              onClick={() => setShowPreview(false)}
+              className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+              title="Закрыть предпросмотр"
+            >
+              <MdClose className="w-6 h-6" />
+            </button>
+            <ArticlePreview blocks={blocks} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }; 

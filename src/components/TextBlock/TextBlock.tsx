@@ -63,247 +63,42 @@ export const TextBlock = ({
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
-      Node.create({
-        name: 'formula',
-        group: 'inline',
-        inline: true,
-        atom: true,
-        addAttributes() {
-          return {
-            inline: {
-              default: 'true'
-            },
-            source: {
-              default: 'latex'
-            },
-            content: {
-              default: ''
-            }
-          }
-        },
-        parseHTML() {
-          return [
-            {
-              tag: 'formula',
-            },
-          ]
-        },
-        renderHTML({ HTMLAttributes }) {
-          return ['formula', { 
-            class: 'inline-block px-2 py-0.5 mx-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100', 
-            ...HTMLAttributes 
-          }, HTMLAttributes.content]
-        }
-      })
     ],
     content: block.content,
     onUpdate: ({ editor }) => {
       onUpdate({ content: editor.getHTML() });
     },
-    autofocus: false,
-    editorProps: {
-      handleKeyDown: (view, event) => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-          const { $from } = view.state.selection;
-          const node = $from.node();
-          
-          const inList = hasParentNode(view.state, 'bulletList') || hasParentNode(view.state, 'orderedList');
-          
-          if (!inList) {
-            event.preventDefault();
-            onEnterPress?.();
-            return true;
-          }
-          
-          if ($from.parent.textContent.trim() === '') {
-            event.preventDefault();
-            editor?.chain().focus().liftListItem('listItem').run();
-            onEnterPress?.();
-            return true;
-          }
-          
-          return false;
-        }
-        return false;
+    onSelectionUpdate: ({ editor }) => {
+      if (onActiveFormatsChange) {
+        onActiveFormatsChange({
+          bold: editor.isActive('bold'),
+          italic: editor.isActive('italic'),
+          underline: editor.isActive('underline'),
+          superscript: editor.isActive('superscript'),
+        });
       }
-    }
+    },
   });
 
-  const hasParentNode = (state: any, nodeName: string) => {
-    const { $from } = state.selection;
-    let depth = $from.depth;
-    while (depth > 0) {
-      const node = $from.node(depth);
-      if (node.type.name === nodeName) {
-        return true;
-      }
-      depth--;
+  useEffect(() => {
+    if (editor && block.align) {
+      editor.chain().focus().setTextAlign(block.align).run();
     }
-    return false;
-  };
+  }, [editor, block.align]);
 
   useEffect(() => {
-    if (shouldFocus && editor) {
-      setTimeout(() => {
-        editor.commands.focus('start');
-      }, 0);
+    if (editor && shouldFocus) {
+      editor.commands.focus('end');
     }
-  }, [shouldFocus, editor]);
+  }, [editor, shouldFocus]);
 
-  useEffect(() => {
-    if (editor && block.type.startsWith('H')) {
-      editor.chain().focus().setNode('heading', { level: parseInt(block.type[1]) }).run();
-    }
-  }, [editor, block.type]);
-
-  const handleFormatClick = (format: 'bold' | 'italic' | 'underline' | 'superscript') => {
-    if (!editor) return;
-
-    const selection = editor.state.selection;
-    if (!selection) return;
-
-    switch (format) {
-      case 'bold':
-        editor.chain().focus().toggleBold().run();
-        break;
-      case 'italic':
-        editor.chain().focus().toggleItalic().run();
-        break;
-      case 'underline':
-        editor.chain().focus().toggleUnderline().run();
-        break;
-      case 'superscript':
-        editor.chain().focus().toggleSuperscript().run();
-        break;
-    }
-  };
-
-  const handleClearFormat = () => {
-    if (!editor) return;
-    
-    const plainText = editor.state.doc.textContent;
-    
-    editor.chain()
-      .focus()
-      .clearNodes()
-      .clearContent()
-      .insertContent(plainText)
-      .setParagraph()
-      .setTextAlign('left')
-      .run();
-
-    onUpdate({ 
-      type: 'P',
-      align: 'left',
-      content: `<p>${plainText}</p>`
-    });
-  };
+  if (!editor) {
+    return null;
+  }
 
   return (
-    <div className="space-y-4">
-      <Toolbar
-        onBlockTypeChange={(type) => {
-          if (!editor) return;
-          
-          let newContent = '';
-          if (type.startsWith('H')) {
-            editor.chain().focus().setNode('heading', { level: parseInt(type[1]) }).run();
-            newContent = editor.getHTML();
-          } else if (type === 'P' || type === 'CAPTION') {
-            editor.chain().focus().setParagraph().run();
-            newContent = editor.getHTML();
-          }
-          
-          onUpdate({ 
-            type,
-            content: newContent
-          });
-        }}
-        onTextAlignChange={(align) => {
-          if (!editor) return;
-          editor.chain().focus().setTextAlign(align).run();
-          onUpdate({ align });
-        }}
-        onTextCaseChange={(textCase) => {
-          if (!editor) return;
-          
-          const { from, to } = editor.state.selection;
-          const selectedText = editor.state.doc.textBetween(from, to);
-          
-          if (!selectedText) return;
-          
-          let newText = selectedText;
-          switch (textCase) {
-            case 'uppercase':
-              newText = selectedText.toUpperCase();
-              break;
-            case 'lowercase':
-              newText = selectedText.toLowerCase();
-              break;
-            case 'capitalize':
-              newText = selectedText
-                .toLowerCase()
-                .split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-              break;
-          }
-          
-          editor
-            .chain()
-            .focus()
-            .deleteSelection()
-            .insertContent(newText)
-            .run();
-            
-          onUpdate({ textCase });
-        }}
-        onFormatClick={handleFormatClick}
-        onClearFormat={handleClearFormat}
-        onListClick={(type) => {
-          if (!editor) return;
-          if (type === 'bullet') {
-            editor.chain().focus().toggleBulletList().run();
-          }
-          if (type === 'number') {
-            editor.chain().focus().toggleOrderedList().run();
-          }
-        }}
-        onFormulaClick={() => {
-          if (!editor) return;
-          
-          const { from, to } = editor.state.selection;
-          const selectedText = editor.state.doc.textBetween(from, to);
-          
-          if (!selectedText) return;
-          
-          editor.chain()
-            .focus()
-            .deleteSelection()
-            .insertContent({
-              type: 'formula',
-              attrs: {
-                inline: 'true',
-                source: 'latex',
-                content: selectedText
-              }
-            })
-            .run();
-        }}
-        canUndo={editor?.can().undo() ?? false}
-        canRedo={editor?.can().redo() ?? false}
-        onUndo={() => editor?.chain().focus().undo().run()}
-        onRedo={() => editor?.chain().focus().redo().run()}
-        activeFormats={{
-          bold: editor?.isActive('bold') ?? false,
-          italic: editor?.isActive('italic') ?? false,
-          underline: editor?.isActive('underline') ?? false,
-          superscript: editor?.isActive('superscript') ?? false,
-        }}
-      />
-      <div className="bg-gray-50 rounded-lg p-2 focus-within:bg-white transition-colors duration-200">
-        <EditorContent editor={editor} className="outline-none" />
-      </div>
+    <div className="prose max-w-none">
+      <EditorContent editor={editor} />
     </div>
   );
 }; 
