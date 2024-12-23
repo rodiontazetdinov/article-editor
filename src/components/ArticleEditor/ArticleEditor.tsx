@@ -315,13 +315,25 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     if (!block || !('content' in block)) return;
 
     if (block.type === 'H1' || block.type === 'H2' || block.type === 'H3' || block.type === 'P' || block.type === 'CAPTION') {
-      const formulaPlaceholder = '<formula inline="true" source="latex" content=""></formula>';
-      updateBlock(block.id, {
-        content: block.content + formulaPlaceholder
-      });
-      return;
+      const editorElement = document.querySelector(`[data-block-id="${selectedBlockId}"] .ProseMirror`);
+      const editor = (editorElement as any)?.__editor;
+      
+      if (editor) {
+        const { from, to } = editor.state.selection;
+        const selectedText = editor.state.doc.textBetween(from, to);
+        
+        if (selectedText) {
+          // Если есть выделенный текст, конвертируем его в формулу
+          editor.chain().focus().setFormula(selectedText).run();
+        } else {
+          // Если нет выделенного текста, создаем пустую формулу
+          editor.chain().focus().setFormula('').run();
+        }
+        return;
+      }
     }
 
+    // Если это не текстовый блок или нет выделения, создаем новый блок формулы
     const newBlock: TArticleBlock = {
       id: nanoid(10),
       type: 'FORMULA',
