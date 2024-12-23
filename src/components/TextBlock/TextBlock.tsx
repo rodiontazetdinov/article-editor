@@ -9,6 +9,40 @@ import Bold from '@tiptap/extension-bold';
 import { TArticleBlock, ITextBlock } from '@/types/article';
 import { useEffect } from 'react';
 
+// Создаем расширение для инлайн формул
+const Formula = Node.create({
+  name: 'formula',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  addAttributes() {
+    return {
+      inline: {
+        default: 'true'
+      },
+      source: {
+        default: 'latex'
+      },
+      content: {
+        default: ''
+      }
+    }
+  },
+  parseHTML() {
+    return [
+      {
+        tag: 'formula',
+      },
+    ]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['formula', { 
+      class: 'inline-block px-2 py-0.5 mx-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100', 
+      ...HTMLAttributes 
+    }, HTMLAttributes.content]
+  }
+});
+
 interface TextBlockProps {
   block: ITextBlock;
   onUpdate: (updates: Partial<TArticleBlock>) => void;
@@ -63,6 +97,7 @@ export const TextBlock = ({
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
+      Formula, // Добавляем поддержку формул
     ],
     content: block.content,
     onUpdate: ({ editor }) => {
@@ -78,7 +113,74 @@ export const TextBlock = ({
         });
       }
     },
+    editorProps: {
+      handleKeyDown: (view, event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          const { $from } = view.state.selection;
+          
+          const inList = hasParentNode(view.state, 'bulletList') || hasParentNode(view.state, 'orderedList');
+          
+          if (!inList) {
+            event.preventDefault();
+            onEnterPress?.();
+            return true;
+          }
+          
+          if ($from.parent.textContent.trim() === '') {
+            event.preventDefault();
+            editor?.chain().focus().liftListItem('listItem').run();
+            onEnterPress?.();
+            return true;
+          }
+          
+          return false;
+        }
+        return false;
+      }
+    }
   });
+
+  const hasParentNode = (state: any, nodeName: string) => {
+    const { $from } = state.selection;
+    let depth = $from.depth;
+    while (depth > 0) {
+      const node = $from.node(depth);
+      if (node.type.name === nodeName) {
+        return true;
+      }
+      depth--;
+    }
+    return false;
+  };
+
+  // Следим за изменениями форматирования из глобального тулбара
+  useEffect(() => {
+    if (editor && activeFormats) {
+      if (activeFormats.bold !== editor.isActive('bold')) {
+        editor.chain().focus().toggleBold().run();
+      }
+      if (activeFormats.italic !== editor.isActive('italic')) {
+        editor.chain().focus().toggleItalic().run();
+      }
+      if (activeFormats.underline !== editor.isActive('underline')) {
+        editor.chain().focus().toggleUnderline().run();
+      }
+      if (activeFormats.superscript !== editor.isActive('superscript')) {
+        editor.chain().focus().toggleSuperscript().run();
+      }
+    }
+  }, [editor, activeFormats]);
+
+  // Добавляем обработку списков
+  useEffect(() => {
+    if (editor && block.listType) {
+      if (block.listType === 'bullet') {
+        editor.chain().focus().toggleBulletList().run();
+      } else if (block.listType === 'number') {
+        editor.chain().focus().toggleOrderedList().run();
+      }
+    }
+  }, [editor, block.listType]);
 
   useEffect(() => {
     if (editor && block.align) {

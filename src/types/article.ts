@@ -15,6 +15,7 @@ export interface ITextBlock extends BaseBlock {
   content: string;
   align?: TTextAlign;
   textCase?: TTextCase;
+  listType?: 'bullet' | 'number';
 }
 
 export interface IFormulaBlock extends BaseBlock {

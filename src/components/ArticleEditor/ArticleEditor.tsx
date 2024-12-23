@@ -297,14 +297,30 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     const block = blocks.find(b => b.id === selectedBlockId);
     if (!block || !('content' in block)) return;
 
-    updateBlock(block.id, {
-      content: block.content
-    });
+    if (block.type === 'H1' || block.type === 'H2' || block.type === 'H3' || block.type === 'P' || block.type === 'CAPTION') {
+      if (block.listType === type) {
+        updateBlock(block.id, {
+          listType: undefined
+        });
+      } else {
+        updateBlock(block.id, {
+          listType: type
+        });
+      }
+    }
   };
 
   const handleFormulaClick = () => {
     const block = blocks.find(b => b.id === selectedBlockId);
     if (!block || !('content' in block)) return;
+
+    if (block.type === 'H1' || block.type === 'H2' || block.type === 'H3' || block.type === 'P' || block.type === 'CAPTION') {
+      const formulaPlaceholder = '<formula inline="true" source="latex" content=""></formula>';
+      updateBlock(block.id, {
+        content: block.content + formulaPlaceholder
+      });
+      return;
+    }
 
     const newBlock: TArticleBlock = {
       id: nanoid(10),
