@@ -69,6 +69,23 @@ export const TextBlock = ({
   onAdd,
   shouldFocus
 }: TextBlockProps) => {
+  const getBlockClass = (type: ITextBlock['type']) => {
+    switch (type) {
+      case 'H1':
+        return 'text-4xl font-bold tracking-tight';
+      case 'H2':
+        return 'text-3xl font-bold tracking-tight';
+      case 'H3':
+        return 'text-2xl font-bold tracking-tight';
+      case 'P':
+        return 'text-lg leading-relaxed';
+      case 'CAPTION':
+        return 'text-sm text-gray-600 italic';
+      default:
+        return '';
+    }
+  };
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -78,12 +95,17 @@ export const TextBlock = ({
         },
         bulletList: {
           HTMLAttributes: {
-            class: 'list-disc ml-4'
+            class: 'list-disc ml-4 space-y-1'
           }
         },
         orderedList: {
           HTMLAttributes: {
-            class: 'list-decimal ml-4'
+            class: 'list-decimal ml-4 space-y-1'
+          }
+        },
+        paragraph: {
+          HTMLAttributes: {
+            class: 'leading-relaxed'
           }
         }
       }),
@@ -97,7 +119,7 @@ export const TextBlock = ({
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
-      Formula, // Добавляем поддержку формул
+      Formula,
     ],
     content: block.content,
     onUpdate: ({ editor }) => {
@@ -114,6 +136,9 @@ export const TextBlock = ({
       }
     },
     editorProps: {
+      attributes: {
+        class: getBlockClass(block.type),
+      },
       handleKeyDown: (view, event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
           const { $from } = view.state.selection;
@@ -200,10 +225,12 @@ export const TextBlock = ({
 
   return (
     <div 
-      className="prose max-w-none"
+      className={`prose max-w-none focus-within:outline-none ${block.textCase === 'uppercase' ? 'uppercase' : ''} 
+        ${block.textCase === 'lowercase' ? 'lowercase' : ''} 
+        ${block.textCase === 'capitalize' ? 'capitalize' : ''}`}
       style={{ 
         paddingLeft: `${block.indent * 2}rem`,
-        transition: 'padding-left 0.2s ease-in-out'
+        transition: 'all 0.2s ease-in-out'
       }}
     >
       <EditorContent editor={editor} />

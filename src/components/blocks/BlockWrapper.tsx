@@ -1,6 +1,6 @@
 import { TArticleBlock } from '@/types/article';
-import { useState } from 'react';
-import { MdDelete, MdCode, MdAdd, MdTitle, MdTextFields, MdFunctions, MdImage } from 'react-icons/md';
+import { useState, useRef, useEffect } from 'react';
+import { MdDelete, MdCode, MdAdd, MdTitle, MdTextFields, MdFunctions, MdImage, MdMoreVert } from 'react-icons/md';
 
 interface BlockWrapperProps {
   block: TArticleBlock;
@@ -12,8 +12,20 @@ interface BlockWrapperProps {
 }
 
 export const BlockWrapper = ({ block, onDelete, onAdd, blockControls, children }: BlockWrapperProps) => {
+  const [showMenu, setShowMenu] = useState(false);
   const [showJson, setShowJson] = useState(false);
-  const [showAddMenu, setShowAddMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const blockTypes = [
     { type: 'H1' as const, icon: MdTitle, label: 'Заголовок' },
@@ -23,77 +35,82 @@ export const BlockWrapper = ({ block, onDelete, onAdd, blockControls, children }
   ];
 
   return (
-    <div className="relative mb-8">
-      <div className="bg-white rounded-xl">
-        <div className="flex items-center justify-between gap-2 px-4 py-2 border-b border-gray-100">
-          <div className="flex items-center gap-4">
-            <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium text-gray-500 uppercase">
-              {block.type}
-            </span>
-            <div className="flex items-center gap-1">
+    <div className="group/block relative">
+      {/* Основной контент */}
+      <div className="relative">
+        {children}
+      </div>
+
+      {/* Контекстное меню */}
+      <div className="absolute right-0 top-0 opacity-0 group-hover/block:opacity-100 transition-opacity duration-200">
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <MdMoreVert className="w-4 h-4" />
+          </button>
+
+          {showMenu && (
+            <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px] z-50">
+              <div className="px-3 py-1.5 text-xs font-medium text-gray-500 border-b border-gray-100">
+                {block.type}
+              </div>
+              
               <button
                 onClick={() => setShowJson(!showJson)}
-                className={`p-1.5 rounded transition-colors ${
-                  showJson 
-                    ? 'bg-blue-50 text-blue-600' 
-                    : 'text-gray-400 hover:bg-gray-50'
-                }`}
-                title={showJson ? "Скрыть JSON" : "Показать JSON"}
+                className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
               >
                 <MdCode className="w-4 h-4" />
+                <span>{showJson ? "Скрыть JSON" : "Показать JSON"}</span>
               </button>
+
               <button
-                onClick={() => onDelete()}
-                className="p-1.5 rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                title="Удалить блок"
+                onClick={() => {
+                  onDelete();
+                  setShowMenu(false);
+                }}
+                className="flex items-center gap-2 w-full px-3 py-2 hover:bg-red-50 text-red-600 text-sm"
               >
                 <MdDelete className="w-4 h-4" />
+                <span>Удалить блок</span>
               </button>
-              <div className="relative">
-                <button
-                  onClick={() => setShowAddMenu(!showAddMenu)}
-                  className="p-1.5 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-500 transition-colors"
-                  title="Добавить блок"
-                >
-                  <MdAdd className="w-4 h-4" />
-                </button>
-                {showAddMenu && (
-                  <div className="absolute left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px] z-50">
-                    {blockTypes.map((type) => (
-                      <button
-                        key={type.type}
-                        onClick={() => {
-                          onAdd(type.type);
-                          setShowAddMenu(false);
-                        }}
-                        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
-                      >
-                        <type.icon className="w-4 h-4" />
-                        <span>{type.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+
+              <div className="border-t border-gray-100 mt-1 pt-1">
+                <div className="px-3 py-1.5 text-xs font-medium text-gray-500">
+                  Добавить блок
+                </div>
+                {blockTypes.map((type) => (
+                  <button
+                    key={type.type}
+                    onClick={() => {
+                      onAdd(type.type);
+                      setShowMenu(false);
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 hover:bg-gray-50 text-gray-700 text-sm"
+                  >
+                    <type.icon className="w-4 h-4" />
+                    <span>{type.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {blockControls}
-          </div>
-        </div>
-
-        {/* JSON представление */}
-        {showJson && (
-          <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 font-mono text-xs text-gray-600 overflow-x-auto">
-            <pre>{JSON.stringify(block, null, 2)}</pre>
-          </div>
-        )}
-
-        {/* Основной контент */}
-        <div className="px-4 py-3">
-          {children}
+          )}
         </div>
       </div>
+
+      {/* JSON представление */}
+      {showJson && (
+        <div className="mt-2 px-3 py-2 bg-gray-50 rounded-md border border-gray-200 font-mono text-xs text-gray-600 overflow-x-auto">
+          <pre>{JSON.stringify(block, null, 2)}</pre>
+        </div>
+      )}
+
+      {blockControls && (
+        <div className="absolute right-8 top-0 opacity-0 group-hover/block:opacity-100 transition-opacity duration-200">
+          {blockControls}
+        </div>
+      )}
     </div>
   );
 }; 
