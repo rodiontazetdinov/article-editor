@@ -1,7 +1,32 @@
 import { TArticleBlock, ITextBlock, IFormulaBlock, IImageBlock } from '@/types/article';
 import Image from 'next/image';
-import { InlineMath } from 'react-katex';
+import { InlineMath, BlockMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
+
+// Функция предварительной обработки LaTeX формулы
+const preprocessLatex = (latex: string) => {
+  return latex
+    // Исправляем пробелы в командах
+    .replace(/\\left\s*{/g, '\\left\\{')
+    .replace(/\\right\s*}/g, '\\right\\}')
+    .replace(/\\left\s*\(/g, '\\left(')
+    .replace(/\\right\s*\)/g, '\\right)')
+    .replace(/\\left\s*\[/g, '\\left[')
+    .replace(/\\right\s*\]/g, '\\right]')
+    // Исправляем overset
+    .replace(/\\overset\s*{/g, '\\overset{')
+    .replace(/\\overset\s*{\\overline}/g, '\\overline')
+    .replace(/\\overset\s*{\\cdot}/g, '\\dot')
+    // Исправляем exp
+    .replace(/exp\s*⁡/g, '\\exp')
+    // Исправляем греческие буквы
+    .replace(/\\alpha\s+\\overset/g, '\\alpha\\overset')
+    .replace(/\\beta\s+\\right/g, '\\beta\\right')
+    .replace(/\\sigma\s+\\alpha/g, '\\sigma\\alpha')
+    // Исправляем множественные пробелы
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
 interface ArticlePreviewProps {
   blocks: TArticleBlock[];
@@ -32,11 +57,46 @@ export const ArticlePreview = ({ blocks }: ArticlePreviewProps) => {
           />
         );
       case 'P':
+        const textBlock = block as ITextBlock;
+        const content = textBlock.content;
+        
+        // Разбиваем контент на части, разделенные формулами
+        const parts = content.split(/(\$.*?\$)/g);
+        
         return (
-          <p 
-            className="text-lg mb-4 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: (block as ITextBlock).content || '' }}
-          />
+          <p className="text-lg mb-4 leading-relaxed">
+            {parts.map((part, index) => {
+              if (part.startsWith('$') && part.endsWith('$')) {
+                // Это формула - убираем символы $ и рендерим через KaTeX
+                const formula = preprocessLatex(part.slice(1, -1));
+                return (
+                  <InlineMath 
+                    key={index} 
+                    math={formula} 
+                    errorColor="#e53e3e"
+                    renderError={(error) => {
+                      console.error('KaTeX error:', error);
+                      return (
+                        <span 
+                          style={{ 
+                            color: '#e53e3e',
+                            cursor: 'help',
+                            borderBottom: '1px dotted #e53e3e'
+                          }}
+                          title={error.message}
+                        >
+                          ${part.slice(1, -1)}$
+                        </span>
+                      );
+                    }}
+                  />
+                );
+              } else {
+                // Это обычный текст - рендерим как HTML
+                return <span key={index} dangerouslySetInnerHTML={{ __html: part }} />;
+              }
+            })}
+          </p>
         );
       case 'CAPTION':
         return (
@@ -60,9 +120,38 @@ export const ArticlePreview = ({ blocks }: ArticlePreviewProps) => {
           </div>
         ) : null;
       case 'FORMULA':
+        const formulaBlock = block as IFormulaBlock;
+        // Разделяем формулу и номер
+        const [formula, numberPart] = (formulaBlock.content || '').split('#').map(part => part.trim());
+        const number = numberPart?.replace(/[()]/g, '').trim();
+        
         return (
-          <div className="my-6 flex justify-center">
-            <InlineMath math={(block as IFormulaBlock).content || ''} />
+          <div className="my-6 flex justify-center items-center gap-4">
+            <BlockMath 
+              math={preprocessLatex(formula)} 
+              errorColor="#e53e3e"
+              renderError={(error) => {
+                console.error('KaTeX error:', error);
+                return (
+                  <div 
+                    style={{ 
+                      color: '#e53e3e',
+                      cursor: 'help',
+                      borderBottom: '1px dotted #e53e3e',
+                      padding: '1rem'
+                    }}
+                    title={error.message}
+                  >
+                    {formula}
+                  </div>
+                );
+              }}
+            />
+            {number && (
+              <div className="text-lg text-gray-600">
+                ({number})
+              </div>
+            )}
           </div>
         );
       default:
