@@ -199,7 +199,13 @@ export const TextBlock = ({
   }
 
   return (
-    <div className="prose max-w-none">
+    <div 
+      className="prose max-w-none"
+      style={{ 
+        paddingLeft: `${block.indent * 2}rem`,
+        transition: 'padding-left 0.2s ease-in-out'
+      }}
+    >
       <EditorContent editor={editor} />
     </div>
   );

@@ -7,7 +7,7 @@ import {
   MdSuperscript, MdFormatListBulleted, MdFormatListNumbered,
   MdFormatAlignLeft, MdFormatAlignCenter, MdFormatAlignRight,
   MdFunctions, MdFormatClear, MdKeyboardArrowDown,
-  MdTextFields, MdFormatSize
+  MdTextFields, MdFormatSize, MdFormatIndentIncrease, MdFormatIndentDecrease
 } from 'react-icons/md';
 import { BsTypeH1, BsTypeH2, BsTypeH3, BsParagraph, BsTextareaT } from 'react-icons/bs';
 import { RiText } from 'react-icons/ri';
@@ -21,6 +21,9 @@ interface ToolbarProps {
   onClearFormat: () => void;
   onListClick: (type: 'bullet' | 'number') => void;
   onFormulaClick: () => void;
+  onIndentChange: (direction: 'left' | 'right') => void;
+  canIndentLeft: boolean;
+  canIndentRight: boolean;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -41,6 +44,9 @@ export const Toolbar = ({
   onClearFormat,
   onListClick,
   onFormulaClick,
+  onIndentChange,
+  canIndentLeft,
+  canIndentRight,
   canUndo,
   canRedo,
   onUndo,
@@ -229,6 +235,27 @@ export const Toolbar = ({
           title="Каждое Слово С Заглавной"
         >
           <TbLetterCase className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="w-px h-5 bg-gray-200" />
+
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onIndentChange('left')}
+          disabled={!canIndentLeft}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
+          title="Уменьшить отступ"
+        >
+          <MdFormatIndentDecrease className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onIndentChange('right')}
+          disabled={!canIndentRight}
+          className="p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
+          title="Увеличить отступ"
+        >
+          <MdFormatIndentIncrease className="w-4 h-4" />
         </button>
       </div>
 

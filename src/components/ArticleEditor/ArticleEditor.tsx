@@ -343,6 +343,24 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     setSelectedBlockId(newBlock.id);
   };
 
+  const handleIndentChange = (direction: 'left' | 'right') => {
+    const block = blocks.find(b => b.id === selectedBlockId);
+    if (!block) return;
+
+    const currentIndent = block.indent || 0;
+    let newIndent = currentIndent;
+
+    if (direction === 'right' && currentIndent < 4) {
+      newIndent = currentIndent + 1;
+    } else if (direction === 'left' && currentIndent > 0) {
+      newIndent = currentIndent - 1;
+    }
+
+    if (newIndent !== currentIndent) {
+      updateBlock(block.id, { indent: newIndent });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <ActiveBlockToolbar
@@ -354,6 +372,9 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
         onClearFormat={handleClearFormat}
         onListClick={handleListClick}
         onFormulaClick={handleFormulaClick}
+        onIndentChange={handleIndentChange}
+        canIndentLeft={selectedBlockId ? (blocks.find(b => b.id === selectedBlockId)?.indent || 0) > 0 : false}
+        canIndentRight={selectedBlockId ? (blocks.find(b => b.id === selectedBlockId)?.indent || 0) < 4 : false}
         canUndo={history.past.length > 0}
         canRedo={history.future.length > 0}
         onUndo={handleUndo}
