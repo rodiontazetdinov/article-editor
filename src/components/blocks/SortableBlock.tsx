@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { TArticleBlock } from '@/types/article';
+import { TArticleBlock, ITextBlock, IFormulaBlock, IImageBlock } from '@/types/article';
 import { BlockWrapper } from './BlockWrapper';
 import { TextBlock } from '../TextBlock/TextBlock';
 import { FormulaBlock } from './FormulaBlock';
@@ -57,9 +57,10 @@ export const SortableBlock = ({
       case 'H3':
       case 'P':
       case 'CAPTION':
+        const textBlock = block as ITextBlock;
         return (
           <TextBlock 
-            block={block} 
+            block={textBlock}
             onUpdate={onUpdate}
             onDelete={onDelete}
             onAdd={onAdd}
@@ -70,9 +71,11 @@ export const SortableBlock = ({
           />
         );
       case 'FORMULA':
-        return <FormulaBlock block={block} onUpdate={onUpdate} />;
+        const formulaBlock = block as IFormulaBlock;
+        return <FormulaBlock block={formulaBlock} onUpdate={onUpdate} />;
       case 'IMAGE':
-        return <ImageBlock block={block} onUpdate={onUpdate} />;
+        const imageBlock = block as IImageBlock;
+        return <ImageBlock block={imageBlock} onUpdate={onUpdate} />;
       default:
         return null;
     }
