@@ -1,6 +1,7 @@
 import { IFormulaBlock } from '@/types/article';
 import { BlockMath, InlineMath } from 'react-katex';
 import 'katex/dist/katex.min.css';
+import { useState } from 'react';
 
 interface FormulaBlockProps {
   block: IFormulaBlock;
@@ -8,12 +9,10 @@ interface FormulaBlockProps {
 }
 
 export const FormulaBlock = ({ block, onUpdate }: FormulaBlockProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onUpdate({ content: e.target.value });
-  };
-
-  const handleInlineToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ inline: e.target.checked });
   };
 
   // Предварительная обработка LaTeX формулы
@@ -54,77 +53,75 @@ export const FormulaBlock = ({ block, onUpdate }: FormulaBlockProps) => {
   const { formula, number } = getFormulaAndNumber(block.content);
 
   return (
-    <div className="w-full space-y-2">
-      <textarea
-        value={block.content}
-        onChange={handleContentChange}
-        className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="Введите LaTeX формулу"
-        rows={2}
-      />
-      <div className={`
-        ${block.inline ? 'p-2' : 'p-4'} 
-        bg-gray-50 rounded
-        ${!block.inline ? 'formula-container' : ''}
-      `}>
-        <style jsx global>{`
-          .formula-container {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 2rem;
-            align-items: center;
-            width: 100%;
-            overflow: hidden;
-          }
-          .formula-container .formula {
-            overflow-x: auto;
-            overflow-y: hidden;
-            margin: 0;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-          }
-          .formula-container .formula::-webkit-scrollbar {
-            display: none;
-          }
-          .formula-container .formula .katex-display {
-            margin: 0;
-            padding: 0;
-          }
-          .formula-container .formula .katex-display > .katex {
-            white-space: nowrap;
-          }
-          .formula-container .number {
-            font-size: 1.2em;
-            color: #333;
-            white-space: nowrap;
-          }
-        `}</style>
-        {block.inline ? (
-          <InlineMath math={formula || ' '} />
-        ) : (
-          <>
-            <div className="formula">
-              <BlockMath math={formula || ' '} />
-            </div>
-            {number && (
-              <div className="number">
-                ({number})
-              </div>
-            )}
-          </>
-        )}
-      </div>
-      <div className="flex items-center gap-2">
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input
-            type="checkbox"
-            checked={block.inline}
-            onChange={handleInlineToggle}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+    <div className="w-full">
+      {isEditing ? (
+        <div className="space-y-2">
+          <textarea
+            value={block.content}
+            onChange={handleContentChange}
+            className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Введите LaTeX формулу"
+            rows={2}
+            autoFocus
+            onBlur={() => setIsEditing(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                setIsEditing(false);
+              }
+            }}
           />
-          Строчная формула
-        </label>
-      </div>
+          <div className="text-xs text-gray-500">
+            Нажмите Shift + Enter или кликните вне поля для сохранения
+          </div>
+        </div>
+      ) : (
+        <div 
+          className={`formula-container cursor-pointer hover:bg-gray-50/50 transition-colors rounded p-4`}
+          onClick={() => setIsEditing(true)}
+        >
+          <style jsx global>{`
+            .formula-container {
+              display: grid;
+              grid-template-columns: 1fr auto;
+              gap: 2rem;
+              align-items: center;
+              width: 100%;
+              overflow: hidden;
+            }
+            .formula-container .formula {
+              overflow-x: auto;
+              overflow-y: hidden;
+              margin: 0;
+              scrollbar-width: none;
+              -ms-overflow-style: none;
+            }
+            .formula-container .formula::-webkit-scrollbar {
+              display: none;
+            }
+            .formula-container .formula .katex-display {
+              margin: 0;
+              padding: 0;
+            }
+            .formula-container .formula .katex-display > .katex {
+              white-space: nowrap;
+            }
+            .formula-container .number {
+              font-size: 1.2em;
+              color: #333;
+              white-space: nowrap;
+            }
+          `}</style>
+          <div className="formula">
+            <BlockMath math={formula || ' '} />
+          </div>
+          {number && (
+            <div className="number">
+              ({number})
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }; 
