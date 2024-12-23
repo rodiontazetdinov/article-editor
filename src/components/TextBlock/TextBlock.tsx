@@ -206,7 +206,7 @@ const Formula = Node.create({
             key: 'textarea',
             ref: textareaRef,
             value,
-            onChange: (e) => setValue(e.target.value),
+            onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => setValue(e.target.value),
             onKeyDown: handleKeyDown,
             style: {
               width: '100%',
