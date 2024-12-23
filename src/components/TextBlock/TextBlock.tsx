@@ -87,7 +87,7 @@ const Formula = Node.create({
   },
 
   addNodeView() {
-    return ({ node }) => {
+    return ({ node, editor }) => {
       const dom = document.createElement('span');
       dom.style.display = 'inline-block';
       dom.style.verticalAlign = 'middle';
@@ -97,21 +97,23 @@ const Formula = Node.create({
       dom.style.borderRadius = '4px';
       dom.style.border = '1px solid rgba(187, 222, 251, 0.5)';
       dom.style.transition = 'all 0.2s ease-in-out';
+      dom.style.cursor = 'pointer';
+      dom.style.minWidth = '20px';
+      dom.style.minHeight = '24px';
       dom.className = 'inline-formula';
-      
-      dom.addEventListener('mouseenter', () => {
-        dom.style.backgroundColor = 'rgba(187, 222, 251, 0.3)';
-        dom.style.border = '1px solid rgba(187, 222, 251, 0.8)';
-      });
-      
-      dom.addEventListener('mouseleave', () => {
-        dom.style.backgroundColor = 'rgba(232, 244, 253, 0.8)';
-        dom.style.border = '1px solid rgba(187, 222, 251, 0.5)';
-      });
-      
+
+      // Создаем портал для редактора
+      const portalContainer = document.createElement('div');
+      portalContainer.style.position = 'fixed';
+      portalContainer.style.zIndex = '1000';
+      portalContainer.style.top = '0';
+      portalContainer.style.left = '0';
+      document.body.appendChild(portalContainer);
+
+      let isEditing = false;
+
       const renderFormula = (content: string) => {
         try {
-          // Декодируем специальные символы перед рендерингом
           const decodedContent = content
             .replace(/&quot;/g, '"')
             .replace(/&#39;/g, "'")
@@ -120,8 +122,25 @@ const Formula = Node.create({
             .replace(/&amp;/g, '&')
             .replace(/\\\\/g, '\\');
 
-          // Применяем предварительную обработку LaTeX
           const processedContent = preprocessLatex(decodedContent);
+
+          // Сохраняем текущие размеры
+          const width = dom.offsetWidth;
+          const height = dom.offsetHeight;
+
+          // Очищаем содержимое перед рендерингом
+          while (dom.firstChild) {
+            dom.removeChild(dom.firstChild);
+          }
+
+          // Создаем контейнер для формулы
+          const container = document.createElement('div');
+          container.style.display = 'flex';
+          container.style.alignItems = 'center';
+          container.style.justifyContent = 'center';
+          container.style.minWidth = `${Math.max(width, 20)}px`;
+          container.style.minHeight = `${Math.max(height, 24)}px`;
+          dom.appendChild(container);
 
           ReactDOM.render(
             React.createElement(InlineMath, { 
@@ -139,7 +158,7 @@ const Formula = Node.create({
                 }, `$${decodedContent}$`);
               }
             }),
-            dom
+            container
           );
         } catch (error) {
           console.error('Error rendering formula:', error);
@@ -148,6 +167,180 @@ const Formula = Node.create({
           dom.style.border = '1px solid rgba(252, 165, 165, 0.5)';
         }
       };
+
+      const FormulaEditor = ({ content, onSave, onCancel }: { 
+        content: string; 
+        onSave: (content: string) => void;
+        onCancel: () => void;
+      }) => {
+        const [value, setValue] = React.useState(content);
+        const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+        React.useEffect(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+          }
+        }, []);
+
+        const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+          if (e.key === 'Enter' && e.shiftKey) {
+            e.preventDefault();
+            onSave(value);
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            onCancel();
+          }
+        };
+
+        return React.createElement('div', {
+          style: {
+            position: 'absolute',
+            backgroundColor: 'white',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            borderRadius: '6px',
+            padding: '8px',
+            width: '300px'
+          }
+        }, [
+          React.createElement('textarea', {
+            key: 'textarea',
+            ref: textareaRef,
+            value,
+            onChange: (e) => setValue(e.target.value),
+            onKeyDown: handleKeyDown,
+            style: {
+              width: '100%',
+              minHeight: '60px',
+              padding: '8px',
+              border: '1px solid #e2e8f0',
+              borderRadius: '4px',
+              backgroundColor: '#f8fafc',
+              fontFamily: 'monospace',
+              fontSize: '14px',
+              resize: 'vertical',
+              marginBottom: '8px'
+            }
+          }),
+          React.createElement('div', {
+            key: 'preview',
+            style: {
+              padding: '8px',
+              backgroundColor: '#f8fafc',
+              borderRadius: '4px',
+              marginBottom: '8px',
+              minHeight: '30px'
+            }
+          }, React.createElement(InlineMath, { math: preprocessLatex(value) })),
+          React.createElement('div', {
+            key: 'buttons',
+            style: {
+              display: 'flex',
+              gap: '8px'
+            }
+          }, [
+            React.createElement('button', {
+              key: 'save',
+              onClick: () => onSave(value),
+              style: {
+                backgroundColor: '#4299e1',
+                color: 'white',
+                padding: '4px 12px',
+                borderRadius: '4px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                border: 'none'
+              }
+            }, 'Сохранить'),
+            React.createElement('button', {
+              key: 'cancel',
+              onClick: onCancel,
+              style: {
+                backgroundColor: '#e2e8f0',
+                color: '#4a5568',
+                padding: '4px 12px',
+                borderRadius: '4px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                border: 'none'
+              }
+            }, 'Отмена')
+          ])
+        ]);
+      };
+
+      const startEditing = () => {
+        if (isEditing) return;
+        isEditing = true;
+
+        const rect = dom.getBoundingClientRect();
+        portalContainer.style.left = `${rect.left}px`;
+        portalContainer.style.top = `${rect.bottom + 4}px`;
+
+        const handleSave = (content: string) => {
+          // Сначала останавливаем редактирование
+          stopEditing();
+          
+          // Затем обновляем атрибуты узла
+          editor.commands.updateAttributes(node.type.name, { content });
+          
+          // И наконец обновляем отображение
+          requestAnimationFrame(() => {
+            renderFormula(content);
+          });
+        };
+
+        const handleCancel = () => {
+          stopEditing();
+        };
+
+        const handleClickOutside = (e: MouseEvent) => {
+          const target = e.target;
+          if (target instanceof Element && 
+              !portalContainer.contains(target) && 
+              !dom.contains(target)) {
+            // При клике вне редактора сохраняем текущее значение
+            const textarea = portalContainer.querySelector('textarea');
+            if (textarea) {
+              handleSave(textarea.value);
+            } else {
+              stopEditing();
+            }
+          }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+
+        ReactDOM.render(
+          React.createElement(FormulaEditor, {
+            content: node.attrs.content || '',
+            onSave: handleSave,
+            onCancel: handleCancel
+          }),
+          portalContainer
+        );
+      };
+
+      const stopEditing = () => {
+        if (!isEditing) return;
+        isEditing = false;
+        ReactDOM.unmountComponentAtNode(portalContainer);
+      };
+
+      dom.addEventListener('click', startEditing);
+      
+      dom.addEventListener('mouseenter', () => {
+        if (!isEditing) {
+          dom.style.backgroundColor = 'rgba(187, 222, 251, 0.3)';
+          dom.style.border = '1px solid rgba(187, 222, 251, 0.8)';
+        }
+      });
+      
+      dom.addEventListener('mouseleave', () => {
+        if (!isEditing) {
+          dom.style.backgroundColor = 'rgba(232, 244, 253, 0.8)';
+          dom.style.border = '1px solid rgba(187, 222, 251, 0.5)';
+        }
+      });
       
       renderFormula(node.attrs.content || '');
       
@@ -155,11 +348,23 @@ const Formula = Node.create({
         dom,
         update: (updatedNode) => {
           if (updatedNode.type !== node.type) return false;
-          renderFormula(updatedNode.attrs.content || '');
+          
+          // Обновляем ссылку на текущий узел
+          node = updatedNode;
+          
+          if (!isEditing) {
+            // Используем setTimeout для гарантированного обновления после всех изменений
+            setTimeout(() => {
+              renderFormula(updatedNode.attrs.content || '');
+            }, 0);
+          }
           return true;
         },
         destroy: () => {
           ReactDOM.unmountComponentAtNode(dom);
+          if (portalContainer.parentNode) {
+            portalContainer.parentNode.removeChild(portalContainer);
+          }
         },
       }
     }
