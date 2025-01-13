@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { docxToBlocks, parseLatexToJson } from '@/utils/documentParser';
-import { pdfAPI } from '@/api/pdf';
+import { documentAPI } from '@/api/pdf';
 import { MdUpload, MdError, MdCheckCircle } from 'react-icons/md';
 
 interface ImportDocumentProps {
@@ -26,30 +25,17 @@ export const ImportDocument: React.FC<ImportDocumentProps> = ({ onImport }) => {
     setProgress(0);
 
     try {
-      let blocks: any[] = [];
-      
       // Имитация прогресса загрузки
       const progressInterval = setInterval(() => {
         setProgress(prev => Math.min(prev + 10, 90));
       }, 100);
       
-      if (file.name.endsWith('.pdf')) {
-        // Обработка PDF через внешний сервис
-        const result = await pdfAPI.extractText(file);
-        blocks = result.blocks;
-      } else if (file.name.endsWith('.docx')) {
-        const arrayBuffer = await file.arrayBuffer();
-        blocks = await docxToBlocks(arrayBuffer);
-      } else if (file.name.endsWith('.tex')) {
-        const text = await file.text();
-        blocks = parseLatexToJson(text);
-      } else {
-        throw new Error('Поддерживаются только .pdf, .docx и .tex файлы');
-      }
-
+      // Отправляем файл на парсинг
+      const result = await documentAPI.parseFile(file);
+      
       clearInterval(progressInterval);
       setProgress(100);
-      onImport(blocks);
+      onImport(result.blocks);
       
       // Сбрасываем прогресс через некоторое время
       setTimeout(() => {
@@ -57,6 +43,7 @@ export const ImportDocument: React.FC<ImportDocumentProps> = ({ onImport }) => {
         setIsLoading(false);
       }, 1000);
     } catch (err) {
+      console.error('Ошибка при обработке файла:', err);
       setError(err instanceof Error ? err.message : 'Ошибка при импорте файла');
       setIsLoading(false);
       setProgress(0);
