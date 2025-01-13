@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { docxToBlocks, parseLatexToJson } from '@/utils/documentParser';
+import { pdfAPI } from '@/api/pdf';
 import { MdUpload, MdError, MdCheckCircle } from 'react-icons/md';
 
 interface ImportDocumentProps {
@@ -32,14 +33,18 @@ export const ImportDocument: React.FC<ImportDocumentProps> = ({ onImport }) => {
         setProgress(prev => Math.min(prev + 10, 90));
       }, 100);
       
-      if (file.name.endsWith('.docx')) {
+      if (file.name.endsWith('.pdf')) {
+        // Обработка PDF через внешний сервис
+        const result = await pdfAPI.extractText(file);
+        blocks = result.blocks;
+      } else if (file.name.endsWith('.docx')) {
         const arrayBuffer = await file.arrayBuffer();
         blocks = await docxToBlocks(arrayBuffer);
       } else if (file.name.endsWith('.tex')) {
         const text = await file.text();
         blocks = parseLatexToJson(text);
       } else {
-        throw new Error('Поддерживаются только .docx и .tex файлы');
+        throw new Error('Поддерживаются только .pdf, .docx и .tex файлы');
       }
 
       clearInterval(progressInterval);
@@ -129,7 +134,7 @@ export const ImportDocument: React.FC<ImportDocumentProps> = ({ onImport }) => {
                   <span className="text-sm font-medium text-gray-700">
                     Выберите файл или перетащите его сюда
                   </span>
-                  <span className="text-xs text-gray-500">DOCX или TEX</span>
+                  <span className="text-xs text-gray-500">PDF, DOCX или TEX</span>
                 </div>
               </>
             )}
@@ -138,14 +143,13 @@ export const ImportDocument: React.FC<ImportDocumentProps> = ({ onImport }) => {
             id="dropzone-file"
             type="file"
             className="hidden"
-            accept=".docx,.tex"
+            accept=".pdf,.docx,.tex"
             onChange={handleFileUpload}
             disabled={isLoading}
           />
         </label>
       </div>
       
-      {/* Прогресс бар */}
       {progress > 0 && progress < 100 && (
         <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
           <div 
