@@ -135,25 +135,45 @@ async function parseTeXFile(file: File): Promise<DocumentResponse> {
 // Парсинг JSON файла
 async function parseJSONFile(file: File): Promise<DocumentResponse> {
   const text = await file.text();
-  const json = JSON.parse(text);
+  let json;
   
-  // Проверяем структуру JSON
-  if (!Array.isArray(json.blocks)) {
-    throw new Error('Некорректный формат JSON: ожидается поле blocks');
+  try {
+    json = JSON.parse(text);
+  } catch (error) {
+    throw new Error('Некорректный формат JSON');
   }
   
+  // Если передан массив напрямую
+  const blocks = Array.isArray(json) ? json : (json.blocks || []);
+  
   // Валидируем каждый блок
-  const blocks = json.blocks.map((block: any) => {
-    if (!block.type || !block.content) {
-      throw new Error('Некорректный формат блока: отсутствуют обязательные поля');
+  const validatedBlocks = blocks.map((block: any) => {
+    if (!block.type || typeof block.type !== 'string') {
+      throw new Error('Некорректный формат блока: отсутствует или неверный тип');
     }
-    return block as DocumentResponse['blocks'][0];
+    
+    if (!block.content && block.type !== 'IMAGE') {
+      throw new Error('Некорректный формат блока: отсутствует содержимое');
+    }
+    
+    // Проверяем тип блока
+    if (!['H1', 'H2', 'H3', 'P', 'FORMULA', 'IMAGE', 'CAPTION'].includes(block.type)) {
+      throw new Error(`Неподдерживаемый тип блока: ${block.type}`);
+    }
+    
+    // Преобразуем блок в нужный формат
+    return {
+      type: block.type,
+      content: block.content || '',
+      isInline: block.type === 'FORMULA' ? block.isInline || false : undefined,
+      indent: block.indent || 0
+    };
   });
   
   return {
     status: 'success',
     filename: file.name,
-    blocks
+    blocks: validatedBlocks
   };
 }
 
