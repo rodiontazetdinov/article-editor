@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TArticleBlock } from '@/types/article';
 import { MdCode } from 'react-icons/md';
+import { cleanArticleBlocks } from '@/utils/contentCleaner';
 
 interface JsonPreviewProps {
   blocks: TArticleBlock[];
@@ -10,27 +11,30 @@ export const JsonPreview: React.FC<JsonPreviewProps> = ({ blocks }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const formatBlockForExport = (block: TArticleBlock) => {
+    // Сначала очищаем блок от HTML-мусора
+    const cleanBlock = cleanArticleBlocks([block])[0];
+    
     const baseBlock = {
-      type: block.type,
-      content: 'content' in block ? block.content : '',
-      indent: block.indent || 0,
-      id: block.id,
-      modified: block.modified
+      type: cleanBlock.type,
+      content: 'content' in cleanBlock ? cleanBlock.content : '',
+      indent: cleanBlock.indent || 0,
+      id: cleanBlock.id,
+      modified: cleanBlock.modified
     };
 
-    if (block.type === 'FORMULA') {
+    if (cleanBlock.type === 'FORMULA') {
       return {
         ...baseBlock,
-        isInline: 'inline' in block ? block.inline : false
+        isInline: 'inline' in cleanBlock ? cleanBlock.inline : false
       };
     }
 
-    if (block.type === 'IMAGE') {
+    if (cleanBlock.type === 'IMAGE') {
       return {
         ...baseBlock,
-        variant: 'variant' in block ? block.variant : '1',
-        images: 'images' in block ? block.images : [],
-        src: 'src' in block ? block.src : ''
+        variant: 'variant' in cleanBlock ? cleanBlock.variant : '1',
+        images: 'images' in cleanBlock ? cleanBlock.images : [],
+        src: 'src' in cleanBlock ? cleanBlock.src : ''
       };
     }
 

@@ -2,6 +2,7 @@ import { docxToBlocks } from '@/utils/documentParser';
 import { parseLatexToJson } from '@/utils/documentParser';
 import { TexDocumentParser } from '@/utils/texParser';
 import { TArticleBlock, IImageBlock, ITextBlock, IFormulaBlock } from '@/types/article';
+import { cleanArticleBlocks } from '@/utils/contentCleaner';
 
 interface DocumentResponse {
   status: 'success';
@@ -161,19 +162,55 @@ async function parseJSONFile(file: File): Promise<DocumentResponse> {
       throw new Error(`Неподдерживаемый тип блока: ${block.type}`);
     }
     
-    // Преобразуем блок в нужный формат
+    // Преобразуем блок в нужный формат для DocumentResponse
+    if (block.type === 'IMAGE') {
+      return {
+        type: block.type,
+        content: block.src || '',
+        indent: block.indent || 0
+      };
+    }
+
+    if (block.type === 'FORMULA') {
+      return {
+        type: block.type,
+        content: block.content || '',
+        isInline: block.isInline || false,
+        indent: block.indent || 0
+      };
+    }
+
     return {
       type: block.type,
       content: block.content || '',
-      isInline: block.type === 'FORMULA' ? block.isInline || false : undefined,
       indent: block.indent || 0
     };
+  });
+
+  // Очищаем контент от HTML-мусора
+  const cleanedBlocks = cleanArticleBlocks(validatedBlocks).map(block => {
+    if (block.type === 'IMAGE' && 'src' in block) {
+      return {
+        type: block.type,
+        content: block.src,
+        indent: block.indent || 0
+      };
+    }
+    if ('content' in block) {
+      return {
+        type: block.type,
+        content: block.content,
+        isInline: block.type === 'FORMULA' ? ('inline' in block ? block.inline : false) : undefined,
+        indent: block.indent || 0
+      };
+    }
+    throw new Error(`Некорректный формат блока после очистки: ${block.type}`);
   });
   
   return {
     status: 'success',
     filename: file.name,
-    blocks: validatedBlocks
+    blocks: cleanedBlocks
   };
 }
 
