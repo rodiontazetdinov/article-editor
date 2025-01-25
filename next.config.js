@@ -3,8 +3,8 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/pdf/:path*',
-        destination: 'https://service-pdf.teach-in.ru/:path*'
+        source: '/api/pdf',
+        destination: 'https://service-pdf.teach-in.ru'
       }
     ];
   },
