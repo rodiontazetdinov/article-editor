@@ -1,6 +1,7 @@
 import { docxToBlocks } from '@/utils/documentParser';
 import { parseLatexToJson } from '@/utils/documentParser';
-import { TArticleBlock } from '@/types/article';
+import { TexDocumentParser } from '@/utils/texParser';
+import { TArticleBlock, IImageBlock, ITextBlock, IFormulaBlock } from '@/types/article';
 
 interface DocumentResponse {
   status: 'success';
@@ -14,6 +15,35 @@ interface DocumentResponse {
 }
 
 const PARSER_URL = 'https://service-pdf.teach-in.ru';
+
+// Функция для преобразования TArticleBlock в DocumentResponse['blocks']
+function convertBlocks(blocks: TArticleBlock[]): DocumentResponse['blocks'] {
+  return blocks.map(block => {
+    switch (block.type) {
+      case 'IMAGE':
+        return {
+          type: block.type,
+          content: (block as IImageBlock).src || '',
+          indent: block.indent
+        };
+      case 'FORMULA':
+        const formulaBlock = block as IFormulaBlock;
+        return {
+          type: formulaBlock.type,
+          content: formulaBlock.content || '',
+          isInline: formulaBlock.inline,
+          indent: formulaBlock.indent
+        };
+      default:
+        const textBlock = block as ITextBlock;
+        return {
+          type: textBlock.type,
+          content: textBlock.content || '',
+          indent: textBlock.indent
+        };
+    }
+  });
+}
 
 export const documentAPI = {
   async parseFile(file: File): Promise<DocumentResponse> {
@@ -77,25 +107,6 @@ async function parsePDFFile(file: File): Promise<DocumentResponse> {
   };
 }
 
-// Функция для преобразования TArticleBlock в DocumentResponse['blocks']
-function convertBlocks(blocks: TArticleBlock[]): DocumentResponse['blocks'] {
-  return blocks.map(block => {
-    if (block.type === 'IMAGE') {
-      return {
-        type: block.type,
-        content: block.src || '',
-        indent: block.indent
-      };
-    }
-    return {
-      type: block.type,
-      content: block.content || '',
-      isInline: 'inline' in block ? block.inline : undefined,
-      indent: block.indent
-    };
-  });
-}
-
 // Парсинг DOCX файла
 async function parseDOCXFile(file: File): Promise<DocumentResponse> {
   const arrayBuffer = await file.arrayBuffer();
@@ -111,7 +122,8 @@ async function parseDOCXFile(file: File): Promise<DocumentResponse> {
 // Парсинг TeX файла
 async function parseTeXFile(file: File): Promise<DocumentResponse> {
   const text = await file.text();
-  const blocks = parseLatexToJson(text);
+  const parser = new TexDocumentParser();
+  const blocks = parser.parseTeX(text);
   
   return {
     status: 'success',
