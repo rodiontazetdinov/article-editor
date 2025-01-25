@@ -188,22 +188,11 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   };
 
   const handleImport = (importedBlocks: TArticleBlock[]) => {
-    const processedBlocks = importedBlocks.map(block => {
-      if (block.type === 'FORMULA') {
-        return {
-          ...block,
-          id: nanoid(10),
-          modified: new Date().toISOString(),
-          indent: 0,
-        };
-      }
-      return {
-        ...block,
-        id: nanoid(10),
-        modified: new Date().toISOString(),
-        indent: 0,
-      };
-    });
+    const processedBlocks = importedBlocks.map(block => ({
+      ...block,
+      id: nanoid(10),
+      modified: new Date().toISOString(),
+    }));
     
     updateHistory([...blocks, ...processedBlocks]);
   };

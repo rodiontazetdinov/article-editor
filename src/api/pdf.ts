@@ -167,7 +167,7 @@ async function parseJSONFile(file: File): Promise<DocumentResponse> {
       return {
         type: block.type,
         content: block.src || '',
-        indent: block.indent || 0
+        indent: typeof block.indent === 'number' ? block.indent : 0
       };
     }
 
@@ -176,14 +176,14 @@ async function parseJSONFile(file: File): Promise<DocumentResponse> {
         type: block.type,
         content: block.content || '',
         isInline: block.isInline || false,
-        indent: block.indent || 0
+        indent: typeof block.indent === 'number' ? block.indent : 0
       };
     }
 
     return {
       type: block.type,
       content: block.content || '',
-      indent: block.indent || 0
+      indent: typeof block.indent === 'number' ? block.indent : 0
     };
   });
 
