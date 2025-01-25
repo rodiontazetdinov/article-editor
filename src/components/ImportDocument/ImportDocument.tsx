@@ -7,6 +7,13 @@ interface ImportDocumentProps {
   onImport: (blocks: any[]) => void;
 }
 
+const ACCEPTED_TYPES = {
+  'application/pdf': ['.pdf'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'text/plain': ['.tex'],
+  'application/json': ['.json']
+};
+
 export const ImportDocument: React.FC<ImportDocumentProps> = ({ onImport }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,10 +26,9 @@ export const ImportDocument: React.FC<ImportDocumentProps> = ({ onImport }) => {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'application/pdf': ['.pdf']
-    },
-    maxFiles: 1
+    accept: ACCEPTED_TYPES,
+    maxFiles: 1,
+    multiple: false
   });
 
   const processFile = async (file: File) => {
@@ -61,6 +67,14 @@ export const ImportDocument: React.FC<ImportDocumentProps> = ({ onImport }) => {
     }
   };
 
+  const getAcceptedTypesText = () => {
+    return Object.values(ACCEPTED_TYPES)
+      .flat()
+      .join(', ')
+      .replace(/\./g, '')
+      .toUpperCase();
+  };
+
   return (
     <div 
       {...getRootProps()} 
@@ -91,7 +105,10 @@ export const ImportDocument: React.FC<ImportDocumentProps> = ({ onImport }) => {
       ) : (
         <div className="idle-state">
           <MdUpload className="icon" />
-          <p>Перетащите PDF файл сюда или кликните для выбора</p>
+          <p>Перетащите файл сюда или кликните для выбора</p>
+          <p className="supported-formats">
+            Поддерживаемые форматы: {getAcceptedTypesText()}
+          </p>
         </div>
       )}
     </div>

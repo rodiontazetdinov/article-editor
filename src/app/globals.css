@@ -66,6 +66,12 @@ body {
   color: #6b7280;
 }
 
+.dropzone .supported-formats {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
 .loading-state {
   width: 100%;
 }
