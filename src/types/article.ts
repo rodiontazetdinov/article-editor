@@ -32,6 +32,7 @@ export interface IImageBlock extends BaseBlock {
   variant: string;
   images: string[];
   src: string;
+  content?: string;
 }
 
 export interface IRenderBlock extends BaseBlock {

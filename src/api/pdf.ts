@@ -22,10 +22,15 @@ function convertBlocks(blocks: TArticleBlock[]): DocumentResponse['blocks'] {
   return blocks.map(block => {
     switch (block.type) {
       case 'IMAGE':
+        const imageBlock = block as IImageBlock;
+        const imageData = imageBlock.src || imageBlock.content || '';
         return {
           type: block.type,
-          content: (block as IImageBlock).src || '',
-          indent: block.indent
+          content: imageData,
+          src: imageData,
+          indent: block.indent,
+          variant: imageBlock.variant || '1',
+          images: imageBlock.images || []
         };
       case 'FORMULA':
         const formulaBlock = block as IFormulaBlock;
