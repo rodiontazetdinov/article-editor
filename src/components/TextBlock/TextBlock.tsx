@@ -468,9 +468,7 @@ export const TextBlock = ({
       Formula,
     ],
     content: block.content.replace(/\$(.*?)\$/g, (match, formula) => {
-      // Предварительная обработка LaTeX
       const processedFormula = preprocessLatex(formula);
-      // Экранируем специальные символы для HTML атрибутов
       const escapedFormula = processedFormula
         .replace(/&/g, '&amp;')
         .replace(/"/g, '&quot;')
@@ -482,8 +480,14 @@ export const TextBlock = ({
     }),
     onUpdate: ({ editor }) => {
       const content = editor.getHTML();
+      
+      // Очищаем пустые элементы списков
+      const cleanedContent = content
+        .replace(/<li>\s*<p><\/p>\s*<\/li>/g, '')
+        .replace(/<((ul|ol)[^>]*)>\s*<\/\2>/g, '');
+      
       // При сохранении обратно в LaTeX формат, раскодируем специальные символы
-      const processedContent = content.replace(
+      const processedContent = cleanedContent.replace(
         /<span data-type="formula" data-formula="(.*?)"><\/span>/g,
         (_, formula) => {
           const decodedFormula = formula
@@ -493,11 +497,11 @@ export const TextBlock = ({
             .replace(/&gt;/g, '>')
             .replace(/&amp;/g, '&')
             .replace(/\\\\/g, '\\');
-          // Применяем предварительную обработку LaTeX
           const processedFormula = preprocessLatex(decodedFormula);
           return `$${processedFormula}$`;
         }
       );
+
       onUpdate({ content: processedContent });
     },
     onSelectionUpdate: ({ editor }) => {
@@ -517,7 +521,6 @@ export const TextBlock = ({
       handleKeyDown: (view, event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
           const { $from } = view.state.selection;
-          
           const inList = hasParentNode(view.state, 'bulletList') || hasParentNode(view.state, 'orderedList');
           
           if (!inList) {
@@ -526,9 +529,14 @@ export const TextBlock = ({
             return true;
           }
           
-          if ($from.parent.textContent.trim() === '') {
+          // Проверяем пустой ли текущий элемент списка
+          const isEmpty = $from.parent.textContent.trim() === '';
+          
+          if (isEmpty) {
             event.preventDefault();
+            // Удаляем текущий пустой элемент списка
             editor?.chain().focus().liftListItem('listItem').run();
+            // Создаем новый блок после текущего
             onEnterPress?.();
             return true;
           }

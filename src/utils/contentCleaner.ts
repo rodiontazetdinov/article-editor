@@ -9,17 +9,30 @@ const DATA_ATTRS_REGEX = /\s+data-[^=]+=("[^"]*"|'[^']*')/g;
 const EMPTY_TAGS_REGEX = /<([^>]+)>\s*<\/\1>/g;
 const MULTIPLE_SPACES_REGEX = /\s+/g;
 const MULTIPLE_NEWLINES_REGEX = /\n\s*\n/g;
+const EMPTY_LIST_ITEM_REGEX = /<li[^>]*>(?:\s*<p[^>]*>\s*<\/p>\s*|\s*)<\/li>/g;
+const EMPTY_LIST_REGEX = /<(ul|ol)[^>]*>(?:\s*<li[^>]*>(?:\s*<p[^>]*>\s*<\/p>\s*|\s*)<\/li>\s*)*<\/\1>/g;
 
 // Список разрешенных HTML-тегов
-const ALLOWED_TAGS = new Set(['strong', 'em', 'u', 'a', 'br', 'sup', 'sub']);
+const ALLOWED_TAGS = new Set(['strong', 'em', 'u', 'a', 'br', 'sup', 'sub', 'ul', 'ol', 'li']);
 
 /**
  * Очищает HTML-контент, сохраняя только необходимое форматирование
  */
-export function cleanHtmlContent(content: string): string {
+export function cleanHtmlContent(content: string, preserveHTML: boolean = false): string {
+  // Если нужно сохранить оригинальный HTML (для списков)
+  if (preserveHTML) {
+    // Даже если сохраняем HTML, всё равно очищаем пустые элементы
+    return content
+      .replace(EMPTY_LIST_ITEM_REGEX, '')
+      .replace(EMPTY_LIST_REGEX, '');
+  }
+
   // Сохраняем формулы
   const formulas: string[] = [];
-  content = content.replace(INLINE_FORMULA_REGEX, (match) => {
+  content = content
+    .replace(EMPTY_LIST_ITEM_REGEX, '') // Сначала удаляем пустые элементы списка
+    .replace(EMPTY_LIST_REGEX, '') // Затем удаляем пустые списки
+    .replace(INLINE_FORMULA_REGEX, (match) => {
     formulas.push(match);
     return `__FORMULA${formulas.length - 1}__`;
   });
@@ -88,10 +101,30 @@ export function cleanHtmlContent(content: string): string {
  * Очищает блок статьи от лишних HTML-атрибутов
  */
 export function cleanArticleBlock(block: TArticleBlock): TArticleBlock {
-  if ('content' in block) {
+  if ('content' in block && block.content) {
+    // Сохраняем оригинальный HTML для списков
+    const preserveHTML = !!(block.type === 'P' && 'listType' in block && block.listType);
+    
+    // Очищаем контент
+    let cleanedContent = block.content;
+    
+    // Всегда очищаем пустые элементы списка, даже если preserveHTML = true
+    cleanedContent = cleanedContent
+      .replace(EMPTY_LIST_ITEM_REGEX, '')
+      .replace(EMPTY_LIST_REGEX, '');
+    
+    // Если после очистки пустых элементов контент стал пустым, возвращаем пустой параграф
+    if (!cleanedContent.trim()) {
+      const { listType, ...rest } = block as any;
+      return {
+        ...rest,
+        content: '<p></p>'
+      };
+    }
+    
     return {
       ...block,
-      content: cleanHtmlContent(block.content)
+      content: cleanHtmlContent(cleanedContent, preserveHTML)
     };
   }
   return block;

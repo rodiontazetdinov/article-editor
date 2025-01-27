@@ -1,6 +1,7 @@
 export type TBlockType = 'H1' | 'H2' | 'H3' | 'P' | 'FORMULA' | 'IMAGE' | 'CAPTION';
 export type TTextAlign = 'left' | 'center' | 'right' | 'justify';
 export type TTextCase = 'normal' | 'uppercase' | 'lowercase' | 'capitalize';
+export type TListType = 'bullet' | 'number';
 
 interface BaseBlock {
   id: string;
@@ -8,6 +9,7 @@ interface BaseBlock {
   indent: number;
   modified: string;
   $new?: boolean;
+  originalHTML?: string;
 }
 
 export interface ITextBlock extends BaseBlock {
@@ -15,7 +17,7 @@ export interface ITextBlock extends BaseBlock {
   content: string;
   align?: TTextAlign;
   textCase?: TTextCase;
-  listType?: 'bullet' | 'number';
+  listType?: TListType;
 }
 
 export interface IFormulaBlock extends BaseBlock {

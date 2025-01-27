@@ -17,35 +17,36 @@ interface DocumentResponse {
 
 const PARSER_URL = 'https://service-pdf.teach-in.ru';
 
+const VALID_BLOCK_TYPES = ['H1', 'H2', 'H3', 'P', 'FORMULA', 'IMAGE', 'CAPTION'];
+
 // Функция для преобразования TArticleBlock в DocumentResponse['blocks']
 function convertBlocks(blocks: TArticleBlock[]): DocumentResponse['blocks'] {
   return blocks.map(block => {
     switch (block.type) {
       case 'IMAGE':
         const imageBlock = block as IImageBlock;
-        const imageData = imageBlock.src || imageBlock.content || '';
         return {
           type: block.type,
-          content: imageData,
-          src: imageData,
+          content: imageBlock.src || imageBlock.images[0] || '',
+          images: imageBlock.images || [],
           indent: block.indent,
-          variant: imageBlock.variant || '1',
-          images: imageBlock.images || []
+          variant: imageBlock.variant || '1'
         };
       case 'FORMULA':
         const formulaBlock = block as IFormulaBlock;
         return {
           type: formulaBlock.type,
           content: formulaBlock.content || '',
-          isInline: formulaBlock.inline,
+          isInline: formulaBlock.inline ?? false,
           indent: formulaBlock.indent
         };
       default:
         const textBlock = block as ITextBlock;
         return {
           type: textBlock.type,
-          content: textBlock.content || '',
-          indent: textBlock.indent
+          content: textBlock.originalHTML || textBlock.content || '',
+          indent: textBlock.indent,
+          listType: textBlock.listType
         };
     }
   });
@@ -154,24 +155,27 @@ async function parseJSONFile(file: File): Promise<DocumentResponse> {
   
   // Валидируем каждый блок
   const validatedBlocks = blocks.map((block: any) => {
-    if (!block.type || typeof block.type !== 'string') {
-      throw new Error('Некорректный формат блока: отсутствует или неверный тип');
+    // Специальная обработка списков
+    if (block.type === 'P' && block.listType) {
+      return {
+        type: 'P',
+        content: block.content || '',
+        indent: typeof block.indent === 'number' ? block.indent : 0,
+        listType: block.listType,
+        originalHTML: block.content // Сохраняем оригинальный HTML
+      };
     }
-    
-    if (!block.content && block.type !== 'IMAGE') {
-      throw new Error('Некорректный формат блока: отсутствует содержимое');
-    }
-    
-    // Проверяем тип блока
-    if (!['H1', 'H2', 'H3', 'P', 'FORMULA', 'IMAGE', 'CAPTION'].includes(block.type)) {
-      throw new Error(`Неподдерживаемый тип блока: ${block.type}`);
+
+    if (!block.type || !VALID_BLOCK_TYPES.includes(block.type)) {
+      throw new Error(`Некорректный тип блока: ${block.type}`);
     }
     
     // Преобразуем блок в нужный формат для DocumentResponse
     if (block.type === 'IMAGE') {
       return {
         type: block.type,
-        content: block.src || '',
+        content: block.src || block.images?.[0] || '',
+        images: block.images || [],
         indent: typeof block.indent === 'number' ? block.indent : 0
       };
     }
@@ -179,8 +183,8 @@ async function parseJSONFile(file: File): Promise<DocumentResponse> {
     if (block.type === 'FORMULA') {
       return {
         type: block.type,
-        content: block.content || '',
-        isInline: block.isInline || false,
+        content: block.content || block.source || '',
+        isInline: block.inline ?? false,
         indent: typeof block.indent === 'number' ? block.indent : 0
       };
     }
@@ -188,7 +192,8 @@ async function parseJSONFile(file: File): Promise<DocumentResponse> {
     return {
       type: block.type,
       content: block.content || '',
-      indent: typeof block.indent === 'number' ? block.indent : 0
+      indent: typeof block.indent === 'number' ? block.indent : 0,
+      originalHTML: block.originalHTML // Сохраняем оригинальный HTML если есть
     };
   });
 
@@ -198,14 +203,16 @@ async function parseJSONFile(file: File): Promise<DocumentResponse> {
       return {
         type: block.type,
         content: block.src,
+        images: block.images || [],
         indent: block.indent || 0
       };
     }
     if ('content' in block) {
       return {
         type: block.type,
-        content: block.content,
+        content: block.originalHTML || block.content,
         isInline: block.type === 'FORMULA' ? ('inline' in block ? block.inline : false) : undefined,
+        listType: block.type === 'P' ? block.listType : undefined,
         indent: block.indent || 0
       };
     }
