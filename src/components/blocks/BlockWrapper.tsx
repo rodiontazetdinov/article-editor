@@ -1,7 +1,7 @@
 import { TArticleBlock } from '@/types/article';
 import { useState, useRef, useEffect } from 'react';
 import { MdDelete, MdCode, MdAdd, MdTitle, MdTextFields, MdFunctions, MdImage, MdMoreVert, MdScience } from 'react-icons/md';
-import { checkFormulas } from '@/api/deepseek';
+import { useFormulas } from '@/hooks/useFormulas';
 
 interface BlockWrapperProps {
   block: TArticleBlock;
@@ -15,8 +15,8 @@ interface BlockWrapperProps {
 export const BlockWrapper = ({ block, onUpdate, onDelete, onAdd, blockControls, children }: BlockWrapperProps) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showJson, setShowJson] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { checkFormula, isChecking } = useFormulas();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -26,36 +26,19 @@ export const BlockWrapper = ({ block, onUpdate, onDelete, onAdd, blockControls, 
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
-  const handleCheckFormulas = async () => {
+  const handleCheckFormulas = () => {
     if (!block.content) return;
-    
-    setIsChecking(true);
-    try {
-      const result = await checkFormulas(block);
-      console.log('Результат проверки:', result);
-      
-      if (result.changes.length > 0) {
-        // Применяем изменения к блоку
-        onUpdate({ 
-          content: result.corrected,
-          changes: result.changes
-        });
-        
-        // Показываем уведомление об изменениях
-        const changesCount = result.changes.length;
-        alert(`Исправлено формул: ${changesCount}`);
-      } else {
-        alert('Ошибок в формулах не найдено');
-      }
-    } catch (error) {
-      console.error('Ошибка при проверке формул:', error);
-      alert('Ошибка при проверке формул');
-    } finally {
-      setIsChecking(false);
-    }
+    // Добавляем функцию обновления в блок
+    const blockWithUpdate = {
+      ...block,
+      onUpdate
+    };
+    checkFormula(blockWithUpdate);
   };
 
   const blockTypes = [

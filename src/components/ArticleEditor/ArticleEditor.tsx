@@ -152,13 +152,31 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     setFocusBlockId(newBlock.id);
   };
 
-  const updateBlock = (id: string, updates: Partial<TArticleBlock>) => {
-    const newBlocks = blocks.map(block => {
-      if (block.id !== id) return block;
-      return { ...block, ...updates, modified: new Date().toISOString() };
+  const handleBlockUpdate = useCallback((blockId: string, updates: Partial<TArticleBlock>) => {
+    setBlocks(prevBlocks => {
+      return prevBlocks.map(block => {
+        if (block.id === blockId) {
+          // Если у блока уже есть changes, сохраняем их
+          const existingChanges = 'changes' in block ? block.changes || [] : [];
+          const newChanges = 'changes' in updates ? updates.changes || [] : [];
+          
+          return {
+            ...block,
+            ...updates,
+            // Объединяем существующие и новые изменения
+            changes: [...existingChanges, ...newChanges]
+          };
+        }
+        return block;
+      });
     });
-    updateHistory(newBlocks);
-  };
+  }, []);
+
+  const handleBlockUpdateWrapper = useCallback((blockId: string) => {
+    return (updates: Partial<TArticleBlock>) => {
+      handleBlockUpdate(blockId, updates);
+    };
+  }, [handleBlockUpdate]);
 
   const deleteBlock = (id: string) => {
     const newBlocks = blocks.filter(block => block.id !== id);
@@ -167,19 +185,19 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
 
   const handleBlockTypeChange = (type: TBlockType) => {
     if (!selectedBlockId) return;
-    updateBlock(selectedBlockId, { type });
+    handleBlockUpdate(selectedBlockId, { type });
   };
 
   const handleTextAlignChange = (align: TTextAlign) => {
     if (!selectedBlockId) return;
-    updateBlock(selectedBlockId, { align });
+    handleBlockUpdate(selectedBlockId, { align });
   };
 
   const handleTextCaseChange = (textCase: TTextCase) => {
     if (!selectedBlockId) return;
     const block = blocks.find(b => b.id === selectedBlockId);
     if (block && 'content' in block) {
-      updateBlock(selectedBlockId, { textCase });
+      handleBlockUpdate(selectedBlockId, { textCase });
     }
   };
 
@@ -222,7 +240,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
           return (
             <TextBlock 
               block={block as ITextBlock} 
-              onUpdate={(updates) => updateBlock(block.id, updates)}
+              onUpdate={(updates) => handleBlockUpdate(block.id, updates)}
               onDelete={() => deleteBlock(block.id)}
               onAdd={(type) => addBlock(type, block.id)}
               activeFormats={selectedBlockId === block.id ? activeFormats : undefined}
@@ -244,10 +262,10 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
             </div>
           );
         }
-        return <FormulaBlock block={block as IFormulaBlock} onUpdate={(updates) => updateBlock(block.id, updates)} />;
+        return <FormulaBlock block={block as IFormulaBlock} onUpdate={(updates) => handleBlockUpdate(block.id, updates)} />;
       case 'IMAGE':
         if ('variant' in block && 'images' in block && 'src' in block) {
-          return <ImageBlock block={block as IImageBlock} onUpdate={(updates) => updateBlock(block.id, updates)} />;
+          return <ImageBlock block={block as IImageBlock} onUpdate={(updates) => handleBlockUpdate(block.id, updates)} />;
         }
         return null;
       default:
@@ -276,7 +294,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
       superscript: false
     });
 
-    updateBlock(block.id, {
+    handleBlockUpdate(block.id, {
       align: 'left',
       textCase: 'normal'
     });
@@ -288,11 +306,11 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
 
     if (block.type === 'H1' || block.type === 'H2' || block.type === 'H3' || block.type === 'P' || block.type === 'CAPTION') {
       if (block.listType === type) {
-        updateBlock(block.id, {
+        handleBlockUpdate(block.id, {
           listType: undefined
         });
       } else {
-        updateBlock(block.id, {
+        handleBlockUpdate(block.id, {
           listType: type
         });
       }
@@ -358,7 +376,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     }
 
     if (newIndent !== currentIndent) {
-      updateBlock(block.id, { indent: newIndent });
+      handleBlockUpdate(block.id, { indent: newIndent });
     }
   };
 
@@ -433,7 +451,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
                       block={block}
                       isSelected={selectedBlockId === block.id}
                       onSelect={() => setSelectedBlockId(block.id)}
-                      onUpdate={(updates) => updateBlock(block.id, updates)}
+                      onUpdate={handleBlockUpdateWrapper(block.id)}
                       onDelete={() => deleteBlock(block.id)}
                       onAdd={(type) => addBlock(type, block.id)}
                       activeFormats={selectedBlockId === block.id ? activeFormats : undefined}

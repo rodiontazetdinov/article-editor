@@ -27,6 +27,11 @@ export interface ITextBlock extends ArticleBlockBase {
 export interface IFormulaBlock extends ArticleBlockBase {
   type: 'FORMULA';
   inline?: boolean;
+  changes?: Array<{
+    position: number;
+    before: string;
+    after: string;
+  }>;
 }
 
 export interface IImageBlock extends ArticleBlockBase {

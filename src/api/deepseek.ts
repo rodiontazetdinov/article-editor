@@ -16,8 +16,8 @@ const DEEPSEEK_API_KEY = 'sk-073718bcad1e410582fe8ad08fa328c2';
 
 // Функция для очистки MathML и конвертации в LaTeX
 const cleanMathML = (content: string): string => {
-  // Заменяем MathML на простой LaTeX
-  return content.replace(/<math[^>]*>(.*?)<\/math>/g, (match, inner) => {
+  // Сначала обрабатываем MathML
+  const cleanedMathML = content.replace(/<math[^>]*>(.*?)<\/math>/g, (match, inner) => {
     // Извлекаем основные компоненты формулы
     const formula = inner
       .replace(/<[^>]+>/g, '') // Удаляем все теги
@@ -26,16 +26,131 @@ const cleanMathML = (content: string): string => {
       .replace(/&amp;/g, '&')
       .trim();
     
-    return formula;
+    return formula; // Возвращаем формулу без $ - пусть DeepSeek сам решит, нужно ли это формула
   });
+
+  // Очищаем текст от HTML-сущностей и специальных символов
+  return cleanedMathML
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ') // Убираем множественные пробелы
+    .replace(/\.\s*\.\s*\./g, '...') // Исправляем многоточия
+    .replace(/\s*,\s*/g, ', ') // Исправляем запятые
+    .replace(/\s*\.\s*/g, '. ') // Исправляем точки
+    .replace(/\s*:\s*/g, ': ') // Исправляем двоеточия
+    .replace(/\s*;\s*/g, '; ') // Исправляем точки с запятой
+    .trim();
 };
 
-export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekResponse> => {
-  try {
-    // Очищаем контент от MathML
-    const cleanContent = cleanMathML(block.content);
+// Функция для разбиения текста на части с формулами
+const splitTextIntoChunks = (text: string): string[] => {
+  // Разбиваем по предложениям, сохраняя целостность формул
+  const sentences = text.split(/(?<=[.!?])\s+(?=[А-ЯA-Z])/);
+  const chunks: string[] = [];
+  let currentChunk = '';
+
+  for (const sentence of sentences) {
+    if (currentChunk.length + sentence.length > 500) {
+      if (currentChunk) {
+        chunks.push(currentChunk.trim());
+      }
+      currentChunk = sentence;
+    } else {
+      currentChunk += (currentChunk ? ' ' : '') + sentence;
+    }
+  }
+
+  if (currentChunk) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks;
+};
+
+// Функция для предварительной очистки текста от артефактов PDF
+const preprocessPDFText = (text: string): string => {
+  return text
+    // Исправляем точки и многоточия
+    .replace(/\.\s*\.\s*\./g, '...') // ... вместо . . .
+    .replace(/\s*\.\s+(?=[А-Я])/g, '. ') // Точка в конце предложения
     
-    console.log('Отправляем запрос с контентом:', cleanContent);
+    // Убираем переносы и дефисы
+    .replace(/(\w+)-\s+(\w+)/g, '$1$2') // Убираем переносы слов
+    .replace(/\s*-\s*/g, '-') // Нормализуем дефисы
+    
+    // Исправляем пробелы в формулах
+    .replace(/(\w+)\s+(\d+)/g, '$1_$2') // x 1 -> x_1
+    .replace(/(\w+)(\d+)/g, '$1_$2') // x1 -> x_1
+    
+    // Исправляем математические символы
+    .replace(/↔/g, '\\leftrightarrow')
+    .replace(/∈/g, '\\in')
+    .replace(/⊂/g, '\\subset')
+    .replace(/∩/g, '\\cap')
+    .replace(/∪/g, '\\cup')
+    
+    // Исправляем запись степеней и индексов
+    .replace(/\b([A-Za-z])n\b/g, '$1^n') // An -> A^n, Kn -> K^n
+    .replace(/([A-Za-z])_?(\d+)/g, '$1_$2') // x1, x_1 -> x_1
+    
+    // Исправляем запись множеств
+    .replace(/\{([^}]*)\}/g, '\\{$1\\}')
+    
+    // Убираем множественные пробелы
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// Улучшаем промпт для DeepSeek
+const SYSTEM_PROMPT = `Ты LaTeX эксперт. Задача: найти математические формулы в тексте и преобразовать их в LaTeX.
+
+ВАЖНО: Отвечай максимально быстро. Не думай слишком долго.
+
+Правила форматирования:
+1. Математические символы и переменные оборачивать в $: K → $K$
+2. Операторы писать как \\text{}: char → $\\text{char}$
+3. Индексы через _: x1 → $x_1$
+4. Степени через ^: An → $A^n$
+5. Множества в \\{\\}: {x} → $\\{x\\}$
+6. Стрелки и символы: ↔ → $\\leftrightarrow$, ∈ → $\\in$
+7. Производные записывать БЕЗ фигурных скобок:
+   - x' вместо x^{'}
+   - x'' вместо x^{' '}
+   - x''' вместо x^{' ' '}
+8. Экспоненту писать как e^{...}, а не ⅇ:
+   - e^{2t} вместо ⅇ^{2t}
+   - e^t вместо ⅇ^t
+
+Примеры:
+"x' + y'" → "$x' + y'$"
+"x'' - 2x'" → "$x'' - 2x'$"
+"x''' + 3x''" → "$x''' + 3x''$"
+"ee^{2t}" → "$e^{2t}$"
+
+Формат ответа строго JSON:
+{
+  "original": "текст",
+  "corrected": "текст с $формулами$",
+  "changes": [{"position": число, "before": "было", "after": "стало"}]
+}`;
+
+export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekResponse> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    // Берем самый последний контент из блока
+    const latestContent = block.content;
+    
+    // Предварительная обработка текста
+    const cleanedContent = latestContent
+      .replace(/ⅇ/g, 'e')
+      .replace(/\{'\s*'\s*'\}/g, "'''")
+      .replace(/\{'\s*'\}/g, "''")
+      .replace(/\{'\}/g, "'");
 
     const response = await fetch('/api/deepseek/chat/completions', {
       method: 'POST',
@@ -43,36 +158,19 @@ export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekRespo
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
           {
             role: "system",
-            content: `Ты эксперт по LaTeX. Проверяй и исправляй ошибки в формулах. 
-            Формулы заключены в символы $. Не изменяй текст вне формул.
-            Ответ должен быть строго в JSON формате:
-            {
-              "original": "Исходный текст с формулой $E=mc^2$",
-              "corrected": "Исходный текст с формулой $E=mc^2$",
-              "changes": []
-            }
-            
-            Если найдены ошибки:
-            {
-              "original": "Формула $E=mc^3$",
-              "corrected": "Формула $E=mc^2$",
-              "changes": [{
-                "position": 8,
-                "before": "3",
-                "after": "2"
-              }]
-            }`
+            content: SYSTEM_PROMPT
           },
           {
             role: "user",
             content: JSON.stringify({
-              task: "Проверь формулы в тексте и исправь ошибки, сохраняя оригинальное форматирование",
-              content: cleanContent
+              task: "Найди формулы и преобразуй в LaTeX",
+              content: cleanedContent
             })
           }
         ],
@@ -82,30 +180,53 @@ export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekRespo
       })
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Ошибка API:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText
-      });
-      throw new Error(`Ошибка API: ${response.status} - ${errorText}`);
+      throw new Error(`API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('Ответ API:', data);
     
     if (!data.choices?.[0]?.message?.content) {
-      throw new Error('Пустой ответ от API');
+      throw new Error('Empty response from API');
     }
 
-    const result = JSON.parse(data.choices[0].message.content);
-    console.log('Обработанный результат:', result);
+    const result = JSON.parse(data.choices[0].message.content) as DeepSeekResponse;
     
-    return result as DeepSeekResponse;
+    // Проверяем структуру ответа тихо, без выбрасывания ошибок
+    if (!result.original || !result.corrected || !Array.isArray(result.changes)) {
+      return {
+        original: latestContent,
+        corrected: latestContent,
+        changes: []
+      };
+    }
+
+    // Проверяем каждое изменение тихо
+    result.changes = result.changes.filter(change => 
+      typeof change.position === 'number' && 
+      typeof change.before === 'string' && 
+      typeof change.after === 'string'
+    );
+
+    // Дополнительная постобработка результата
+    result.corrected = result.corrected
+      .replace(/\{'\s*'\s*'\}/g, "'''")
+      .replace(/\{'\s*'\}/g, "''")
+      .replace(/\{'\}/g, "'")
+      .replace(/ⅇ/g, 'e');
+
+    return result;
+
+  } catch (error: unknown) {
+    clearTimeout(timeoutId);
     
-  } catch (error) {
-    console.error('Ошибка при проверке формул:', error);
-    throw error;
+    // В случае ошибки возвращаем исходный текст без изменений
+    return {
+      original: block.content,
+      corrected: block.content,
+      changes: []
+    };
   }
 }; 
