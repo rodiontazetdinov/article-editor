@@ -1,6 +1,7 @@
 import { TArticleBlock } from '@/types/article';
 import { useState, useRef, useEffect } from 'react';
-import { MdDelete, MdCode, MdAdd, MdTitle, MdTextFields, MdFunctions, MdImage, MdMoreVert } from 'react-icons/md';
+import { MdDelete, MdCode, MdAdd, MdTitle, MdTextFields, MdFunctions, MdImage, MdMoreVert, MdScience } from 'react-icons/md';
+import { checkFormulas } from '@/api/deepseek';
 
 interface BlockWrapperProps {
   block: TArticleBlock;
@@ -11,9 +12,10 @@ interface BlockWrapperProps {
   children: React.ReactNode;
 }
 
-export const BlockWrapper = ({ block, onDelete, onAdd, blockControls, children }: BlockWrapperProps) => {
+export const BlockWrapper = ({ block, onUpdate, onDelete, onAdd, blockControls, children }: BlockWrapperProps) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showJson, setShowJson] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,6 +28,35 @@ export const BlockWrapper = ({ block, onDelete, onAdd, blockControls, children }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleCheckFormulas = async () => {
+    if (!block.content) return;
+    
+    setIsChecking(true);
+    try {
+      const result = await checkFormulas(block);
+      console.log('Результат проверки:', result);
+      
+      if (result.changes.length > 0) {
+        // Применяем изменения к блоку
+        onUpdate({ 
+          content: result.corrected,
+          changes: result.changes
+        });
+        
+        // Показываем уведомление об изменениях
+        const changesCount = result.changes.length;
+        alert(`Исправлено формул: ${changesCount}`);
+      } else {
+        alert('Ошибок в формулах не найдено');
+      }
+    } catch (error) {
+      console.error('Ошибка при проверке формул:', error);
+      alert('Ошибка при проверке формул');
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   const blockTypes = [
     { type: 'H1' as const, icon: MdTitle, label: 'Заголовок' },
@@ -44,12 +75,30 @@ export const BlockWrapper = ({ block, onDelete, onAdd, blockControls, children }
       {/* Контекстное меню */}
       <div className="absolute right-0 top-0 opacity-0 group-hover/block:opacity-100 transition-opacity duration-200">
         <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <MdMoreVert className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCheckFormulas}
+              disabled={isChecking}
+              className={`p-1.5 rounded-md hover:bg-blue-50 text-blue-500 
+                transition-colors ${isChecking ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Проверить формулы"
+              aria-label="Проверить формулы в блоке"
+            >
+              <MdScience className="w-4 h-4" />
+              {isChecking && (
+                <span className="absolute -top-1 -right-1 w-2 h-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <MdMoreVert className="w-4 h-4" />
+            </button>
+          </div>
 
           {showMenu && (
             <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px] z-50">

@@ -1,10 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  images: {
+    domains: ['localhost', 'storage.googleapis.com'],
+  },
   async rewrites() {
     return [
       {
-        source: '/api/pdf',
-        destination: 'https://service-pdf.teach-in.ru'
+        source: '/api/deepseek/:path*',
+        destination: 'https://api.deepseek.com/v1/:path*'
       }
     ];
   },

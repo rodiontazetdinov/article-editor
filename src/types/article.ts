@@ -1,48 +1,53 @@
 export type TBlockType = 'H1' | 'H2' | 'H3' | 'P' | 'FORMULA' | 'IMAGE' | 'CAPTION';
 export type TTextAlign = 'left' | 'center' | 'right' | 'justify';
-export type TTextCase = 'normal' | 'uppercase' | 'lowercase' | 'capitalize';
+export type TTextCase = 'none' | 'uppercase' | 'lowercase' | 'capitalize';
 export type TListType = 'bullet' | 'number';
 
-interface BaseBlock {
+export interface ArticleBlockBase {
   id: string;
   type: TBlockType;
-  indent: number;
-  modified: string;
-  $new?: boolean;
-  originalHTML?: string;
-}
-
-export interface ITextBlock extends BaseBlock {
-  type: 'H1' | 'H2' | 'H3' | 'P' | 'CAPTION';
   content: string;
+  indent?: number;
   align?: TTextAlign;
   textCase?: TTextCase;
-  listType?: TListType;
+  $new?: boolean;
 }
 
-export interface IFormulaBlock extends BaseBlock {
+export interface ITextBlock extends ArticleBlockBase {
+  type: 'H1' | 'H2' | 'H3' | 'P' | 'CAPTION';
+  originalHTML?: string;
+  listType?: 'ordered' | 'unordered';
+  changes?: Array<{
+    position: number;
+    before: string;
+    after: string;
+  }>;
+}
+
+export interface IFormulaBlock extends ArticleBlockBase {
   type: 'FORMULA';
-  source: 'latex' | 'math';
-  content: string;
-  latex?: string;
-  ref?: string;
   inline?: boolean;
 }
 
-export interface IImageBlock extends BaseBlock {
+export interface IImageBlock extends ArticleBlockBase {
   type: 'IMAGE';
-  variant: string;
-  images: string[];
-  src: string;
-  content?: string;
+  src?: string;
+  images?: string[];
+  variant?: string;
 }
 
-export interface IRenderBlock extends BaseBlock {
-  type: TBlockType;
-}
-
-export type TArticleBlock = ITextBlock | IFormulaBlock | IImageBlock | IRenderBlock;
+export type TArticleBlock = ITextBlock | IFormulaBlock | IImageBlock;
 
 export interface IArticle {
+  id: string;
+  title: string;
   blocks: TArticleBlock[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IRenderBlock {
+  id: string;
+  type: TBlockType;
+  indent?: number;
 } 

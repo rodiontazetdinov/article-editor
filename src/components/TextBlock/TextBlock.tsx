@@ -403,6 +403,69 @@ interface TextBlockProps {
   shouldFocus?: boolean;
 }
 
+// Функция для очистки MathML и конвертации в LaTeX
+const cleanMathML = (content: string): string => {
+  // Сначала обрабатываем MathML
+  const cleanedMathML = content.replace(/<math[^>]*>(.*?)<\/math>/g, (match, inner) => {
+    // Извлекаем основные компоненты формулы
+    const formula = inner
+      .replace(/<[^>]+>/g, '') // Удаляем все теги
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .trim();
+    
+    return `$${formula}$`;
+  });
+
+  // Затем обрабатываем LaTeX команды
+  return cleanedMathML
+    .replace(/\\overset{\\cdot}/g, '\\dot') // Заменяем \overset{\cdot} на \dot
+    .replace(/\\left\s*{/g, '\\left\\{') // Исправляем скобки
+    .replace(/\\right\s*}/g, '\\right\\}')
+    .replace(/\\left\s*\(/g, '\\left(')
+    .replace(/\\right\s*\)/g, '\\right)')
+    .replace(/\\left\s*\[/g, '\\left[')
+    .replace(/\\right\s*\]/g, '\\right]')
+    .replace(/\\_/g, '_') // Исправляем подчеркивания
+    .replace(/\\,/g, ' ') // Исправляем пробелы
+    .replace(/\s+/g, ' ') // Убираем лишние пробелы
+    .trim();
+};
+
+// Функция для преобразования текста в LaTeX формат
+const textToLatex = (text: string): string => {
+  return text
+    .replace(/\$(.*?)\$/g, (match, formula) => {
+      const cleanFormula = formula
+        .replace(/\\overset{\\cdot}/g, '\\dot')
+        .replace(/\\left\s*{/g, '\\left\\{')
+        .replace(/\\right\s*}/g, '\\right\\}')
+        .replace(/\\left\s*\(/g, '\\left(')
+        .replace(/\\right\s*\)/g, '\\right)')
+        .replace(/\\left\s*\[/g, '\\left[')
+        .replace(/\\right\s*\]/g, '\\right]')
+        .replace(/\\_/g, '_')
+        .replace(/\\,/g, ' ')
+        .trim();
+      return `<span data-type="formula" data-formula="${cleanFormula}"></span>`;
+    });
+};
+
+// Функция для преобразования текста с формулами в HTML с компонентами Formula
+const processFormulas = (content: string): string => {
+  return content.replace(/\$(.*?)\$/g, (match, formula) => {
+    const cleanFormula = formula
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .trim();
+    return `<span data-type="formula" data-formula="${cleanFormula}"></span>`;
+  });
+};
+
 export const TextBlock = ({ 
   block,
   onUpdate,
@@ -430,6 +493,19 @@ export const TextBlock = ({
       default:
         return '';
     }
+  };
+
+  const hasParentNode = (state: any, nodeName: string) => {
+    const { $from } = state.selection;
+    let depth = $from.depth;
+    while (depth > 0) {
+      const node = $from.node(depth);
+      if (node.type.name === nodeName) {
+        return true;
+      }
+      depth--;
+    }
+    return false;
   };
 
   const editor = useEditor({
@@ -467,42 +543,19 @@ export const TextBlock = ({
       }),
       Formula,
     ],
-    content: block.content.replace(/\$(.*?)\$/g, (match, formula) => {
-      const processedFormula = preprocessLatex(formula);
-      const escapedFormula = processedFormula
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\\/g, '\\\\');
-      return `<span data-type="formula" data-formula="${escapedFormula}"></span>`;
-    }),
+    content: processFormulas(block.content),
     onUpdate: ({ editor }) => {
       const content = editor.getHTML();
       
-      // Очищаем пустые элементы списков
+      // Очищаем пустые элементы списков и преобразуем формулы обратно в текст
       const cleanedContent = content
         .replace(/<li>\s*<p><\/p>\s*<\/li>/g, '')
-        .replace(/<((ul|ol)[^>]*)>\s*<\/\2>/g, '');
+        .replace(/<((ul|ol)[^>]*)>\s*<\/\2>/g, '')
+        .replace(/<span data-type="formula" data-formula="(.*?)"[^>]*><\/span>/g, (_, formula) => {
+          return `$${formula}$`;
+        });
       
-      // При сохранении обратно в LaTeX формат, раскодируем специальные символы
-      const processedContent = cleanedContent.replace(
-        /<span data-type="formula" data-formula="(.*?)"><\/span>/g,
-        (_, formula) => {
-          const decodedFormula = formula
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&amp;/g, '&')
-            .replace(/\\\\/g, '\\');
-          const processedFormula = preprocessLatex(decodedFormula);
-          return `$${processedFormula}$`;
-        }
-      );
-
-      onUpdate({ content: processedContent });
+      onUpdate({ content: cleanedContent });
     },
     onSelectionUpdate: ({ editor }) => {
       if (onActiveFormatsChange) {
@@ -548,83 +601,79 @@ export const TextBlock = ({
     }
   });
 
+  // Сохраняем ссылку на редактор
   useEffect(() => {
     if (editor) {
       editorRef.current = editor;
     }
   }, [editor]);
 
-  const handleFormulaClick = useCallback(() => {
-    if (!editor) return;
-    const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to);
-    if (!selectedText) return;
-
-    editor.chain().focus().setFormula(selectedText).run();
-  }, [editor]);
-
-  const hasParentNode = (state: any, nodeName: string) => {
-    const { $from } = state.selection;
-    let depth = $from.depth;
-    while (depth > 0) {
-      const node = $from.node(depth);
-      if (node.type.name === nodeName) {
-        return true;
+  // Эффект для обновления контента при изменении блока
+  useEffect(() => {
+    const currentEditor = editorRef.current;
+    if (currentEditor && block.content) {
+      // Преобразуем текст с формулами в HTML с компонентами Formula
+      const processedContent = processFormulas(block.content);
+      if (processedContent !== currentEditor.getHTML()) {
+        currentEditor.commands.setContent(processedContent);
       }
-      depth--;
     }
-    return false;
-  };
+  }, [block.content]);
 
   // Следим за изменениями форматирования из глобального тулбара
   useEffect(() => {
-    if (editor && activeFormats) {
-      if (activeFormats.bold !== editor.isActive('bold')) {
-        editor.chain().focus().toggleBold().run();
+    const currentEditor = editorRef.current;
+    if (currentEditor && activeFormats) {
+      if (activeFormats.bold !== currentEditor.isActive('bold')) {
+        currentEditor.chain().focus().toggleBold().run();
       }
-      if (activeFormats.italic !== editor.isActive('italic')) {
-        editor.chain().focus().toggleItalic().run();
+      if (activeFormats.italic !== currentEditor.isActive('italic')) {
+        currentEditor.chain().focus().toggleItalic().run();
       }
-      if (activeFormats.underline !== editor.isActive('underline')) {
-        editor.chain().focus().toggleUnderline().run();
+      if (activeFormats.underline !== currentEditor.isActive('underline')) {
+        currentEditor.chain().focus().toggleUnderline().run();
       }
-      if (activeFormats.superscript !== editor.isActive('superscript')) {
-        editor.chain().focus().toggleSuperscript().run();
+      if (activeFormats.superscript !== currentEditor.isActive('superscript')) {
+        currentEditor.chain().focus().toggleSuperscript().run();
       }
     }
-  }, [editor, activeFormats]);
+  }, [activeFormats]);
 
   // Добавляем обработку списков
   useEffect(() => {
-    if (editor && block.listType) {
-      if (block.listType === 'bullet') {
-        editor.chain().focus().toggleBulletList().run();
-      } else if (block.listType === 'number') {
-        editor.chain().focus().toggleOrderedList().run();
+    const currentEditor = editorRef.current;
+    if (currentEditor && block.listType) {
+      if (block.listType === 'ordered') {
+        currentEditor.chain().focus().toggleOrderedList().run();
+      } else if (block.listType === 'unordered') {
+        currentEditor.chain().focus().toggleBulletList().run();
       }
     }
-  }, [editor, block.listType]);
+  }, [block.listType]);
 
   useEffect(() => {
-    if (editor && block.align) {
-      editor.chain().focus().setTextAlign(block.align).run();
+    const currentEditor = editorRef.current;
+    if (currentEditor && block.align) {
+      currentEditor.chain().focus().setTextAlign(block.align).run();
     }
-  }, [editor, block.align]);
+  }, [block.align]);
 
   useEffect(() => {
-    if (editor && shouldFocus) {
-      editor.commands.focus('end');
+    const currentEditor = editorRef.current;
+    if (currentEditor && shouldFocus) {
+      currentEditor.commands.focus('end');
     }
-  }, [editor, shouldFocus]);
+  }, [shouldFocus]);
 
   useEffect(() => {
-    if (editor) {
+    const currentEditor = editorRef.current;
+    if (currentEditor) {
       const editorElement = document.querySelector(`[data-block-id="${block.id}"] .ProseMirror`);
       if (editorElement) {
-        (editorElement as any).__editor = editor;
+        (editorElement as any).__editor = currentEditor;
       }
     }
-  }, [editor, block.id]);
+  }, [block.id]);
 
   if (!editor) {
     return null;
@@ -636,7 +685,7 @@ export const TextBlock = ({
         ${block.textCase === 'lowercase' ? 'lowercase' : ''} 
         ${block.textCase === 'capitalize' ? 'capitalize' : ''}`}
       style={{ 
-        paddingLeft: `${block.indent * 2}rem`,
+        paddingLeft: `${block.indent ?? 0 * 2}rem`,
         transition: 'all 0.2s ease-in-out'
       }}
       data-block-id={block.id}
