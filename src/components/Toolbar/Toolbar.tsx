@@ -7,7 +7,8 @@ import {
   MdSuperscript, MdFormatListBulleted, MdFormatListNumbered,
   MdFormatAlignLeft, MdFormatAlignCenter, MdFormatAlignRight,
   MdFunctions, MdFormatClear, MdKeyboardArrowDown,
-  MdTextFields, MdFormatSize, MdFormatIndentIncrease, MdFormatIndentDecrease
+  MdTextFields, MdFormatSize, MdFormatIndentIncrease, MdFormatIndentDecrease,
+  MdAutoFixHigh
 } from 'react-icons/md';
 import { BsTypeH1, BsTypeH2, BsTypeH3, BsParagraph, BsTextareaT } from 'react-icons/bs';
 import { RiText } from 'react-icons/ri';
@@ -21,6 +22,7 @@ interface ToolbarProps {
   onClearFormat: () => void;
   onListClick: (type: 'bullet' | 'number') => void;
   onFormulaClick: () => void;
+  onDeepSeekConvert: () => void;
   onIndentChange: (direction: 'left' | 'right') => void;
   canIndentLeft: boolean;
   canIndentRight: boolean;
@@ -44,6 +46,7 @@ export const Toolbar = ({
   onClearFormat,
   onListClick,
   onFormulaClick,
+  onDeepSeekConvert,
   onIndentChange,
   canIndentLeft,
   canIndentRight,
@@ -99,35 +102,35 @@ export const Toolbar = ({
       <div className="flex items-center gap-1">
         <button
           onClick={() => onFormatClick('bold')}
-          className={`p-1.5 rounded hover:bg-gray-100 ${activeFormats?.bold ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+          className={`toolbar-button p-1.5 rounded hover:bg-gray-100 ${activeFormats?.bold ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
           title="Жирный (Ctrl+B)"
         >
           <MdFormatBold className="w-4 h-4" />
         </button>
         <button
           onClick={() => onFormatClick('italic')}
-          className={`p-1.5 rounded hover:bg-gray-100 ${activeFormats?.italic ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+          className={`toolbar-button p-1.5 rounded hover:bg-gray-100 ${activeFormats?.italic ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
           title="Курсив (Ctrl+I)"
         >
           <MdFormatItalic className="w-4 h-4" />
         </button>
         <button
           onClick={() => onFormatClick('underline')}
-          className={`p-1.5 rounded hover:bg-gray-100 ${activeFormats?.underline ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+          className={`toolbar-button p-1.5 rounded hover:bg-gray-100 ${activeFormats?.underline ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
           title="Подчеркнутый (Ctrl+U)"
         >
           <MdFormatUnderlined className="w-4 h-4" />
         </button>
         <button
           onClick={() => onFormatClick('superscript')}
-          className={`p-1.5 rounded hover:bg-gray-100 ${activeFormats?.superscript ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+          className={`toolbar-button p-1.5 rounded hover:bg-gray-100 ${activeFormats?.superscript ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
           title="Верхний индекс"
         >
           <MdSuperscript className="w-4 h-4" />
         </button>
         <button
           onClick={onClearFormat}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
           title="Очистить форматирование (Ctrl+\)"
         >
           <MdFormatClear className="w-4 h-4" />
@@ -139,21 +142,21 @@ export const Toolbar = ({
       <div className="flex items-center gap-1">
         <button
           onClick={() => onTextAlignChange('left')}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
           title="По левому краю"
         >
           <MdFormatAlignLeft className="w-4 h-4" />
         </button>
         <button
           onClick={() => onTextAlignChange('center')}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
           title="По центру"
         >
           <MdFormatAlignCenter className="w-4 h-4" />
         </button>
         <button
           onClick={() => onTextAlignChange('right')}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
           title="По правому краю"
         >
           <MdFormatAlignRight className="w-4 h-4" />
@@ -165,14 +168,14 @@ export const Toolbar = ({
       <div className="flex items-center gap-1">
         <button
           onClick={() => onListClick('bullet')}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
           title="Маркированный список"
         >
           <MdFormatListBulleted className="w-4 h-4" />
         </button>
         <button
           onClick={() => onListClick('number')}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
           title="Нумерованный список"
         >
           <MdFormatListNumbered className="w-4 h-4" />
@@ -184,10 +187,17 @@ export const Toolbar = ({
       <div className="flex items-center gap-1">
         <button
           onClick={onFormulaClick}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
           title="Вставить формулу"
         >
           <MdFunctions className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onDeepSeekConvert}
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          title="Конвертировать через DeepSeek"
+        >
+          <MdAutoFixHigh className="w-4 h-4" />
         </button>
       </div>
 
@@ -197,7 +207,7 @@ export const Toolbar = ({
         <button
           onClick={onUndo}
           disabled={!canUndo}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
           title="Отменить (Ctrl+Z)"
         >
           <MdUndo className="w-4 h-4" />
@@ -205,7 +215,7 @@ export const Toolbar = ({
         <button
           onClick={onRedo}
           disabled={!canRedo}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
           title="Повторить (Ctrl+Shift+Z)"
         >
           <MdRedo className="w-4 h-4" />
@@ -217,21 +227,21 @@ export const Toolbar = ({
       <div className="flex items-center gap-1">
         <button
           onClick={() => onTextCaseChange('uppercase')}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
           title="ВЕРХНИЙ РЕГИСТР"
         >
           <TbLetterCaseUpper className="w-4 h-4" />
         </button>
         <button
           onClick={() => onTextCaseChange('lowercase')}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
           title="нижний регистр"
         >
           <TbLetterCaseLower className="w-4 h-4" />
         </button>
         <button
           onClick={() => onTextCaseChange('capitalize')}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
           title="Каждое Слово С Заглавной"
         >
           <TbLetterCase className="w-4 h-4" />
@@ -244,7 +254,7 @@ export const Toolbar = ({
         <button
           onClick={() => onIndentChange('left')}
           disabled={!canIndentLeft}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
           title="Уменьшить отступ"
         >
           <MdFormatIndentDecrease className="w-4 h-4" />
@@ -252,7 +262,7 @@ export const Toolbar = ({
         <button
           onClick={() => onIndentChange('right')}
           disabled={!canIndentRight}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
+          className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700 disabled:opacity-40"
           title="Увеличить отступ"
         >
           <MdFormatIndentIncrease className="w-4 h-4" />

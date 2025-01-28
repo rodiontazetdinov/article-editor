@@ -152,6 +152,33 @@ export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekRespo
       .replace(/\{'\s*'\}/g, "''")
       .replace(/\{'\}/g, "'");
 
+    console.log('DeepSeek request:', {
+      url: '/api/deepseek/chat/completions',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+      },
+      body: {
+        model: "deepseek-chat",
+        messages: [
+          {
+            role: "system",
+            content: SYSTEM_PROMPT
+          },
+          {
+            role: "user",
+            content: JSON.stringify({
+              task: "Найди формулы и преобразуй в LaTeX",
+              content: cleanedContent
+            })
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 2000,
+        response_format: { type: "json_object" }
+      }
+    });
+
     const response = await fetch('/api/deepseek/chat/completions', {
       method: 'POST',
       headers: {
@@ -183,16 +210,25 @@ export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekRespo
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('DeepSeek API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      throw new Error(`API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('DeepSeek API response:', data);
     
     if (!data.choices?.[0]?.message?.content) {
+      console.error('Empty response from API:', data);
       throw new Error('Empty response from API');
     }
 
     const result = JSON.parse(data.choices[0].message.content) as DeepSeekResponse;
+    console.log('Parsed DeepSeek result:', result);
     
     // Проверяем структуру ответа тихо, без выбрасывания ошибок
     if (!result.original || !result.corrected || !Array.isArray(result.changes)) {

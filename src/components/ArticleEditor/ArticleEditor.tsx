@@ -31,6 +31,7 @@ import {
 } from '@dnd-kit/sortable';
 import { SortableBlock } from '../blocks/SortableBlock';
 import { ActiveBlockToolbar } from '../Toolbar/ActiveBlockToolbar';
+import { checkFormulas } from '@/api/deepseek';
 
 interface ArticleEditorProps {
   initialData?: IArticle;
@@ -64,6 +65,13 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     superscript: false
   });
   const [showPreview, setShowPreview] = useState(false);
+  const [selection, setSelection] = useState<{
+    blockId: string;
+    text: string;
+    startOffset: number;
+    endOffset: number;
+  } | null>(null);
+  const [isConverting, setIsConverting] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -153,6 +161,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   };
 
   const handleBlockUpdate = useCallback((blockId: string, updates: Partial<TArticleBlock>) => {
+    console.log('Block update:', { blockId, updates });
     setBlocks(prevBlocks => {
       return prevBlocks.map(block => {
         if (block.id === blockId) {
@@ -160,12 +169,14 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
           const existingChanges = 'changes' in block ? block.changes || [] : [];
           const newChanges = 'changes' in updates ? updates.changes || [] : [];
           
-          return {
+          const updatedBlock = {
             ...block,
             ...updates,
             // Объединяем существующие и новые изменения
             changes: [...existingChanges, ...newChanges]
           };
+          console.log('Updated block:', updatedBlock);
+          return updatedBlock;
         }
         return block;
       });
@@ -246,6 +257,10 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
               activeFormats={selectedBlockId === block.id ? activeFormats : undefined}
               onActiveFormatsChange={handleActiveFormatsChange}
               onEnterPress={() => addBlock('P', block.id)}
+              onSelect={(sel) => setSelection({
+                blockId: block.id,
+                ...sel
+              })}
             />
           );
         }
@@ -318,48 +333,102 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   };
 
   const handleFormulaClick = () => {
+    console.log('Formula button clicked');
     const block = blocks.find(b => b.id === selectedBlockId);
-    if (!block || !('content' in block)) return;
-
-    if (block.type === 'H1' || block.type === 'H2' || block.type === 'H3' || block.type === 'P' || block.type === 'CAPTION') {
-      const editorElement = document.querySelector(`[data-block-id="${selectedBlockId}"] .ProseMirror`);
-      const editor = (editorElement as any)?.__editor;
-      
-      if (editor) {
-        const { from, to } = editor.state.selection;
-        const selectedText = editor.state.doc.textBetween(from, to);
-        
-        if (selectedText) {
-          // Если есть выделенный текст, конвертируем его в формулу
-          editor.chain().focus().setFormula(selectedText).run();
-        } else {
-          // Если нет выделенного текста, создаем пустую формулу
-          editor.chain().focus().setFormula('').run();
-        }
-        return;
-      }
+    console.log('Selected block:', block);
+    if (!block || !('content' in block)) {
+      console.log('No valid block found');
+      return;
     }
 
-    // Если это не текстовый блок или нет выделения, создаем новый блок формулы
-    const newBlock: TArticleBlock = {
-      id: nanoid(10),
-      type: 'FORMULA',
-      source: 'latex',
-      content: '',
-      indent: 0,
-      modified: new Date().toISOString(),
-      $new: true
-    };
+    const editorContainer = document.querySelector(`[data-block-id="${selectedBlockId}"]`);
+    console.log('Editor container:', editorContainer);
+    
+    // Получаем инстанс редактора через наше свойство
+    const editor = (editorContainer as any)?.__tiptapEditor;
+    console.log('Editor instance:', editor);
+    console.log('Available commands:', editor?.commands);
+    
+    if (editor) {
+      console.log('Trying to wrap in formula');
+      editor.commands.wrapInFormula();
+    }
+  };
 
-    const blockIndex = blocks.findIndex(b => b.id === selectedBlockId);
-    const newBlocks = [
-      ...blocks.slice(0, blockIndex + 1),
-      newBlock,
-      ...blocks.slice(blockIndex + 1)
-    ];
+  const handleDeepSeekConvert = async () => {
+    console.log('DeepSeek button clicked');
+    const block = blocks.find(b => b.id === selectedBlockId);
+    console.log('Selected block:', block);
+    if (!block || !('content' in block)) {
+      console.log('No valid block found');
+      return;
+    }
 
-    updateHistory(newBlocks);
-    setSelectedBlockId(newBlock.id);
+    const editorContainer = document.querySelector(`[data-block-id="${selectedBlockId}"]`);
+    console.log('Editor container:', editorContainer);
+    
+    // Получаем инстанс редактора через наше свойство
+    const editor = (editorContainer as any)?.__tiptapEditor;
+    console.log('Editor instance:', editor);
+    console.log('Available commands:', editor?.commands);
+    
+    if (editor && !isConverting) {
+      const { from, to } = editor.state.selection;
+      const text = editor.state.doc.textBetween(from, to);
+      console.log('Selected text for DeepSeek:', text);
+      
+      if (!text) {
+        console.log('No text selected');
+        return;
+      }
+      
+      setIsConverting(true);
+      try {
+        console.log('Sending to DeepSeek:', text);
+        console.log('Block data:', {
+          id: block.id,
+          type: 'FORMULA',
+          content: text,
+          indent: 0,
+          modified: new Date().toISOString()
+        });
+
+        const result = await checkFormulas({
+          id: block.id,
+          type: 'FORMULA',
+          content: text,
+          indent: 0,
+          modified: new Date().toISOString()
+        });
+
+        console.log('DeepSeek result:', result);
+
+        if (result.corrected) {
+          console.log('Inserting corrected content:', result.corrected);
+          editor
+            .chain()
+            .focus()
+            .insertContent(result.corrected)
+            .run();
+
+          console.log('Updating block with changes:', result.changes);
+          handleBlockUpdate(block.id, { 
+            changes: result.changes
+          });
+        } else {
+          console.log('No corrected content in result');
+        }
+      } catch (error) {
+        console.error('DeepSeek error:', error);
+      } finally {
+        setIsConverting(false);
+      }
+    } else {
+      console.log('Editor not ready or already converting:', { 
+        editorExists: !!editor, 
+        isConverting 
+      });
+    }
   };
 
   const handleIndentChange = (direction: 'left' | 'right') => {
@@ -391,6 +460,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
         onClearFormat={handleClearFormat}
         onListClick={handleListClick}
         onFormulaClick={handleFormulaClick}
+        onDeepSeekConvert={handleDeepSeekConvert}
         onIndentChange={handleIndentChange}
         canIndentLeft={selectedBlockId ? (blocks.find(b => b.id === selectedBlockId)?.indent || 0) > 0 : false}
         canIndentRight={selectedBlockId ? (blocks.find(b => b.id === selectedBlockId)?.indent || 0) < 4 : false}

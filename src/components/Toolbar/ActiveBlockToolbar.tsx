@@ -1,6 +1,7 @@
 import { TBlockType, TTextAlign, TTextCase } from '@/types/article';
 import { Toolbar } from './Toolbar';
 import { useEffect, useState } from 'react';
+import { MdFunctions, MdAutoFixHigh } from 'react-icons/md';
 
 interface ActiveBlockToolbarProps {
   blockId: string | null;
@@ -11,6 +12,7 @@ interface ActiveBlockToolbarProps {
   onClearFormat: () => void;
   onListClick: (type: 'bullet' | 'number') => void;
   onFormulaClick: () => void;
+  onDeepSeekConvert: () => void;
   onIndentChange: (direction: 'left' | 'right') => void;
   canIndentLeft: boolean;
   canIndentRight: boolean;
@@ -51,6 +53,20 @@ export const ActiveBlockToolbar: React.FC<ActiveBlockToolbarProps> = ({
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-screen-xl mx-auto px-4">
           <Toolbar {...toolbarProps} />
+          <button
+            onClick={toolbarProps.onFormulaClick}
+            className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
+            title="Вставить формулу"
+          >
+            <MdFunctions size={20} />
+          </button>
+          <button
+            onClick={toolbarProps.onDeepSeekConvert}
+            className="toolbar-button p-1.5 rounded hover:bg-gray-100 text-gray-700"
+            title="Конвертировать через DeepSeek"
+          >
+            <MdAutoFixHigh size={20} />
+          </button>
         </div>
       </div>
     </div>

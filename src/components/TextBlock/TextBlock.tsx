@@ -19,6 +19,10 @@ declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     formula: {
       setFormula: (content: string) => ReturnType;
+    };
+    customFormula: {
+      wrapInFormula: () => ReturnType;
+      convertWithDeepSeek: () => ReturnType;
     }
   }
 }
@@ -401,6 +405,9 @@ interface TextBlockProps {
   onDelete: () => void;
   onAdd: (type: TArticleBlock['type']) => void;
   shouldFocus?: boolean;
+  onSelect?: (selection: { text: string; startOffset: number; endOffset: number; }) => void;
+  onFormulaClick?: () => void;
+  onDeepSeekConvert?: () => void;
 }
 
 // Функция для очистки MathML и конвертации в LaTeX
@@ -474,9 +481,15 @@ export const TextBlock = ({
   onEnterPress,
   onDelete,
   onAdd,
-  shouldFocus
+  shouldFocus,
+  onSelect,
+  onFormulaClick,
+  onDeepSeekConvert
 }: TextBlockProps) => {
   const editorRef = useRef<Editor | null>(null);
+  
+  // Добавляем ref для хранения DOM элемента
+  const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const getBlockClass = (type: ITextBlock['type']) => {
     switch (type) {
@@ -541,7 +554,67 @@ export const TextBlock = ({
       TextAlign.configure({
         types: ['heading', 'paragraph'],
       }),
-      Formula,
+      Formula.configure({
+        HTMLAttributes: {
+          class: 'formula-node'
+        }
+      }),
+      Extension.create({
+        name: 'customFormula',
+        addCommands() {
+          return {
+            wrapInFormula: () => ({ state, chain }) => {
+              const { from, to } = state.selection;
+              const text = state.doc.textBetween(from, to);
+              console.log('wrapInFormula command called with text:', text);
+              
+              if (text) {
+                return chain()
+                  .focus()
+                  .insertContent(`$${text}$`)
+                  .run();
+              }
+              return false;
+            },
+            convertWithDeepSeek: () => ({ state, chain }) => {
+              const { from, to } = state.selection;
+              const text = state.doc.textBetween(from, to);
+              console.log('convertWithDeepSeek command called with text:', text);
+              
+              if (text && onDeepSeekConvert) {
+                onDeepSeekConvert();
+                return true;
+              }
+              return false;
+            }
+          }
+        }
+      }),
+      Extension.create({
+        name: 'preserveSelection',
+        addProseMirrorPlugins() {
+          return [
+            new Plugin({
+              key: new PluginKey('preserveSelection'),
+              props: {
+                handleDOMEvents: {
+                  mousedown: (view, event) => {
+                    const target = event.target as HTMLElement;
+                    console.log('mousedown on element:', target);
+                    // Если клик был по кнопке тулбара, сохраняем текущее выделение
+                    if (target.closest('.toolbar-button')) {
+                      console.log('Clicked on toolbar button, preventing default');
+                      event.preventDefault();
+                      return true;
+                    }
+                    return false;
+                  }
+                }
+              }
+            })
+          ]
+        }
+      })
     ],
     content: processFormulas(block.content),
     onUpdate: ({ editor }) => {
@@ -564,6 +637,32 @@ export const TextBlock = ({
           italic: editor.isActive('italic'),
           underline: editor.isActive('underline'),
           superscript: editor.isActive('superscript'),
+        });
+      }
+
+      const { from, to } = editor.state.selection;
+      const text = editor.state.doc.textBetween(from, to);
+      
+      console.log('Selection update:', { 
+        hasText: !!text, 
+        text,
+        from,
+        to,
+        selection: editor.state.selection,
+        block: block.id
+      });
+      
+      if (text && onSelect) {
+        console.log('Calling onSelect with:', {
+          text,
+          startOffset: from,
+          endOffset: to
+        });
+        
+        onSelect({
+          text,
+          startOffset: from,
+          endOffset: to
         });
       }
     },
@@ -605,6 +704,10 @@ export const TextBlock = ({
   useEffect(() => {
     if (editor) {
       editorRef.current = editor;
+      // Сохраняем редактор в DOM элементе
+      if (editorContainerRef.current) {
+        (editorContainerRef.current as any).__tiptapEditor = editor;
+      }
     }
   }, [editor]);
 
@@ -681,6 +784,7 @@ export const TextBlock = ({
 
   return (
     <div 
+      ref={editorContainerRef}
       className={`prose max-w-none focus-within:outline-none ${block.textCase === 'uppercase' ? 'uppercase' : ''} 
         ${block.textCase === 'lowercase' ? 'lowercase' : ''} 
         ${block.textCase === 'capitalize' ? 'capitalize' : ''}`}
