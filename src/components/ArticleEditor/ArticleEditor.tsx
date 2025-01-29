@@ -351,7 +351,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     }
   };
 
-  const handleFormulaClick = async () => {
+  const handleFormulaClick = () => {
     console.log('Formula button clicked');
     const block = blocks.find(b => b.id === selectedBlockId);
     console.log('Selected block:', block);
@@ -376,30 +376,25 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
         console.log('No text selected');
         return;
       }
-      
-      try {
-        console.log('Sending to DeepSeek:', text);
-        const result = await checkFormulasInline(text);
-        console.log('DeepSeek result:', result);
 
-        if (result.corrected) {
-          console.log('Inserting corrected content:', result.corrected);
-          editor
-            .chain()
-            .focus()
-            .insertContent(result.corrected)
-            .run();
-
-          console.log('Updating block with changes:', result.changes);
-          handleBlockUpdate(block.id, { 
-            changes: result.changes
-          });
-        } else {
-          console.log('No corrected content in result');
-        }
-      } catch (error) {
-        console.error('DeepSeek error:', error);
+      // Проверяем, не является ли текст уже формулой
+      if (text.startsWith('$') && text.endsWith('$')) {
+        console.log('Text is already a formula');
+        return;
       }
+      
+      // Оборачиваем текст в доллары
+      const formula = `$${text}$`;
+      console.log('Converting to formula:', formula);
+      
+      // Вставляем формулу
+      editor
+        .chain()
+        .focus()
+        .insertContent(formula)
+        .run();
+      
+      console.log('Formula inserted');
     }
   };
 
