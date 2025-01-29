@@ -1,42 +1,34 @@
 import { NextResponse } from 'next/server';
+import OpenAI from 'openai';
+
+// Инициализируем OpenAI клиент для DeepSeek
+const openai = new OpenAI({
+  baseURL: 'https://api.deepseek.com/v1',
+  apiKey: process.env.DEEPSEEK_API_KEY || '',
+  timeout: 45000, // 45 секунд таймаут
+  maxRetries: 3, // Максимальное количество повторных попыток
+});
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log('Forwarding request to DeepSeek:', {
-      url: 'https://api.deepseek.com/v1/chat/completions',
-      method: 'POST',
-      headers: request.headers,
-      body
-    });
+    console.log('Processing DeepSeek request with body:', body);
 
-    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': request.headers.get('Authorization') || ''
-      },
-      body: JSON.stringify(body)
-    });
+        const completion = await openai.chat.completions.create({
+          ...body,
+          model: body.model || 'deepseek-chat',
+        });
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('DeepSeek API error:', {
-        status: response.status,
-        statusText: response.statusText,
-        error
-      });
-      return new NextResponse(error, { status: response.status });
-    }
-
-    const data = await response.json();
-    console.log('DeepSeek API response:', data);
-    return NextResponse.json(data);
+        console.log('DeepSeek API response:', completion);
+        return NextResponse.json(completion);
 
   } catch (error) {
     console.error('Error in DeepSeek API route:', error);
     return new NextResponse(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), 
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.toString() : undefined
+      }), 
       { status: 500 }
     );
   }

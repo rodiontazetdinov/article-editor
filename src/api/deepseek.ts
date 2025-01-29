@@ -105,7 +105,7 @@ const preprocessPDFText = (text: string): string => {
 };
 
 // Улучшаем промпт для DeepSeek
-const SYSTEM_PROMPT = `Ты LaTeX эксперт. Задача: найти математические формулы в тексте и преобразовать их в LaTeX.
+const SYSTEM_PROMPT = `Ты LaTeX эксперт. Задача: найти математические формулы в тексте и преобразовать их в LaTeX. Ответ должен быть строго в формате JSON.
 
 ВАЖНО: Отвечай максимально быстро. Не думай слишком долго.
 
@@ -139,26 +139,20 @@ const SYSTEM_PROMPT = `Ты LaTeX эксперт. Задача: найти ма�
 
 export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekResponse> => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  const timeoutId = setTimeout(() => controller.abort(), 45000); // 30 секунд
 
-  try {
-    // Берем самый последний контент из блока
-    const latestContent = block.content;
-    
-    // Предварительная обработка текста
-    const cleanedContent = latestContent
-      .replace(/ⅇ/g, 'e')
-      .replace(/\{'\s*'\s*'\}/g, "'''")
-      .replace(/\{'\s*'\}/g, "''")
-      .replace(/\{'\}/g, "'");
+    try {
+      // Берем самый последний контент из блока
+      const latestContent = block.content;
+      
+      // Предварительная обработка текста
+      const cleanedContent = latestContent
+        .replace(/ⅇ/g, 'e')
+        .replace(/\{'\s*'\s*'\}/g, "'''")
+        .replace(/\{'\s*'\}/g, "''")
+        .replace(/\{'\}/g, "'");
 
-    console.log('DeepSeek request:', {
-      url: '/api/deepseek/chat/completions',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-      },
-      body: {
+      const requestBody = {
         model: "deepseek-chat",
         messages: [
           {
@@ -176,86 +170,88 @@ export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekRespo
         temperature: 0.1,
         max_tokens: 2000,
         response_format: { type: "json_object" }
-      }
-    });
+      };
 
-    const response = await fetch('/api/deepseek/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content: SYSTEM_PROMPT
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              task: "Найди формулы и преобразуй в LaTeX",
-              content: cleanedContent
-            })
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 2000,
-        response_format: { type: "json_object" }
-      })
-    });
+    console.log('DeepSeek request:', JSON.stringify({
+        url: '/api/deepseek/chat/completions',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        },
+        body: requestBody
+      }, null, 4));
+
+      const response = await fetch('/api/deepseek/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        },
+        signal: controller.signal,
+        body: JSON.stringify(requestBody)
+      });
 
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('DeepSeek API error:', {
-        status: response.status,
-        statusText: response.statusText,
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('DeepSeek API error:', {
+          status: response.status,
+          statusText: response.statusText,
         error: errorText
-      });
-      throw new Error(`API error: ${response.status} - ${errorText}`);
-    }
+        });
+        throw new Error(`API error: ${response.status} - ${errorText}`);
+      }
 
-    const data = await response.json();
-    console.log('DeepSeek API response:', data);
-    
-    if (!data.choices?.[0]?.message?.content) {
-      console.error('Empty response from API:', data);
-      throw new Error('Empty response from API');
-    }
+      const data = await response.json();
+      console.log('DeepSeek API response:', data);
+      
+      if (!data.choices?.[0]?.message?.content) {
+        console.error('Empty response from API:', data);
+        throw new Error('Empty response from API');
+      }
 
-    const result = JSON.parse(data.choices[0].message.content) as DeepSeekResponse;
-    console.log('Parsed DeepSeek result:', result);
-    
-    // Проверяем структуру ответа тихо, без выбрасывания ошибок
-    if (!result.original || !result.corrected || !Array.isArray(result.changes)) {
-      return {
-        original: latestContent,
-        corrected: latestContent,
-        changes: []
-      };
-    }
+      const result = JSON.parse(data.choices[0].message.content) as DeepSeekResponse;
+      console.log('Parsed DeepSeek result:', result);
+      
+      // Проверяем структуру ответа тихо, без выбрасывания ошибок
+      if (!result.original || !result.corrected || !Array.isArray(result.changes)) {
+        return {
+          original: latestContent,
+          corrected: latestContent,
+          changes: []
+        };
+      }
 
-    // Проверяем каждое изменение тихо
-    result.changes = result.changes.filter(change => 
-      typeof change.position === 'number' && 
-      typeof change.before === 'string' && 
-      typeof change.after === 'string'
-    );
+      // Пост-обработка для блочных формул
+      if (block.type === 'FORMULA' && !block.inline) {
+        console.log('Post-processing block formula, removing $ wrapper');
+        // Удаляем обрамляющие $ из corrected и changes
+        result.corrected = result.corrected.replace(/^\$|\$$/g, '');
+        result.changes = result.changes.map(change => ({
+          ...change,
+          after: change.after.replace(/^\$|\$$/g, '')
+        }));
+        console.log('Post-processed result:', result);
+      }
 
-    // Дополнительная постобработка результата
-    result.corrected = result.corrected
-      .replace(/\{'\s*'\s*'\}/g, "'''")
-      .replace(/\{'\s*'\}/g, "''")
-      .replace(/\{'\}/g, "'")
-      .replace(/ⅇ/g, 'e');
+      // Проверяем каждое изменение тихо
+      result.changes = result.changes.filter(change => 
+        typeof change.position === 'number' && 
+        typeof change.before === 'string' && 
+        typeof change.after === 'string'
+      );
 
-    return result;
+      // Дополнительная постобработка результата
+      result.corrected = result.corrected
+        .replace(/\{'\s*'\s*'\}/g, "'''")
+        .replace(/\{'\s*'\}/g, "''")
+        .replace(/\{'\}/g, "'")
+        .replace(/ⅇ/g, 'e');
 
-  } catch (error: unknown) {
+      return result;
+
+    } catch (error: unknown) {
     clearTimeout(timeoutId);
     
     // В случае ошибки возвращаем исходный текст без изменений
