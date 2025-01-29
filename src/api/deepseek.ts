@@ -139,7 +139,7 @@ const SYSTEM_PROMPT = `Ты LaTeX эксперт. Задача: найти ма�
 
 export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekResponse> => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45000); // 30 секунд
+  const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 секунд
 
     try {
       // Берем самый последний контент из блока
@@ -172,33 +172,28 @@ export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekRespo
         response_format: { type: "json_object" }
       };
 
-    console.log('DeepSeek request:', JSON.stringify({
+      console.log('DeepSeek request:', JSON.stringify({
         url: '/api/deepseek/chat/completions',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-        },
         body: requestBody
       }, null, 4));
 
       const response = await fetch('/api/deepseek/chat/completions', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+          'Content-Type': 'application/json'
         },
         signal: controller.signal,
         body: JSON.stringify(requestBody)
       });
 
-    clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('DeepSeek API error:', {
           status: response.status,
           statusText: response.statusText,
-        error: errorText
+          error: errorText
         });
         throw new Error(`API error: ${response.status} - ${errorText}`);
       }
