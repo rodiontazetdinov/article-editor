@@ -256,4 +256,109 @@ export const checkFormulas = async (block: TArticleBlock): Promise<DeepSeekRespo
       changes: []
     };
   }
+};
+
+export const checkFormulasInline = async (text: string): Promise<DeepSeekResponse> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+  try {
+    // Предварительная обработка текста
+    const cleanedContent = text
+      .replace(/ⅇ/g, 'e')
+      .replace(/\{'\s*'\s*'\}/g, "'''")
+      .replace(/\{'\s*'\}/g, "''")
+      .replace(/\{'\}/g, "'");
+
+    const requestBody = {
+      model: "deepseek-chat",
+      messages: [
+        {
+          role: "system",
+          content: SYSTEM_PROMPT
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            task: "Найди формулы и преобразуй в LaTeX",
+            content: cleanedContent
+          })
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 2000,
+      response_format: { type: "json_object" }
+    };
+
+    console.log('DeepSeek inline request:', JSON.stringify({
+      url: '/api/deepseek/chat/completions',
+      body: requestBody
+    }, null, 4));
+
+    const response = await fetch('/api/deepseek/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      signal: controller.signal,
+      body: JSON.stringify(requestBody)
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('DeepSeek API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      throw new Error(`API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('DeepSeek API response:', data);
+    
+    if (!data.choices?.[0]?.message?.content) {
+      console.error('Empty response from API:', data);
+      throw new Error('Empty response from API');
+    }
+
+    const result = JSON.parse(data.choices[0].message.content) as DeepSeekResponse;
+    console.log('Parsed DeepSeek result:', result);
+    
+    // Проверяем структуру ответа тихо, без выбрасывания ошибок
+    if (!result.original || !result.corrected || !Array.isArray(result.changes)) {
+      return {
+        original: text,
+        corrected: text,
+        changes: []
+      };
+    }
+
+    // Проверяем каждое изменение тихо
+    result.changes = result.changes.filter(change => 
+      typeof change.position === 'number' && 
+      typeof change.before === 'string' && 
+      typeof change.after === 'string'
+    );
+
+    // Дополнительная постобработка результата
+    result.corrected = result.corrected
+      .replace(/\{'\s*'\s*'\}/g, "'''")
+      .replace(/\{'\s*'\}/g, "''")
+      .replace(/\{'\}/g, "'")
+      .replace(/ⅇ/g, 'e');
+
+    return result;
+
+  } catch (error: unknown) {
+    clearTimeout(timeoutId);
+    
+    return {
+      original: text,
+      corrected: text,
+      changes: []
+    };
+  }
 }; 

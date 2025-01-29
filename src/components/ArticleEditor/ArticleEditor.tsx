@@ -31,7 +31,7 @@ import {
 } from '@dnd-kit/sortable';
 import { SortableBlock } from '../blocks/SortableBlock';
 import { ActiveBlockToolbar } from '../Toolbar/ActiveBlockToolbar';
-import { checkFormulas } from '@/api/deepseek';
+import { checkFormulas, checkFormulasInline } from '@/api/deepseek';
 
 interface ArticleEditorProps {
   initialData?: IArticle;
@@ -351,7 +351,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     }
   };
 
-  const handleFormulaClick = () => {
+  const handleFormulaClick = async () => {
     console.log('Formula button clicked');
     const block = blocks.find(b => b.id === selectedBlockId);
     console.log('Selected block:', block);
@@ -366,11 +366,40 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     // Получаем инстанс редактора через наше свойство
     const editor = (editorContainer as any)?.__tiptapEditor;
     console.log('Editor instance:', editor);
-    console.log('Available commands:', editor?.commands);
     
     if (editor) {
-      console.log('Trying to wrap in formula');
-      editor.commands.wrapInFormula();
+      const { from, to } = editor.state.selection;
+      const text = editor.state.doc.textBetween(from, to);
+      console.log('Selected text for formula:', text);
+      
+      if (!text) {
+        console.log('No text selected');
+        return;
+      }
+      
+      try {
+        console.log('Sending to DeepSeek:', text);
+        const result = await checkFormulasInline(text);
+        console.log('DeepSeek result:', result);
+
+        if (result.corrected) {
+          console.log('Inserting corrected content:', result.corrected);
+          editor
+            .chain()
+            .focus()
+            .insertContent(result.corrected)
+            .run();
+
+          console.log('Updating block with changes:', result.changes);
+          handleBlockUpdate(block.id, { 
+            changes: result.changes
+          });
+        } else {
+          console.log('No corrected content in result');
+        }
+      } catch (error) {
+        console.error('DeepSeek error:', error);
+      }
     }
   };
 
@@ -404,22 +433,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
       setIsConverting(true);
       try {
         console.log('Sending to DeepSeek:', text);
-        console.log('Block data:', {
-          id: block.id,
-          type: 'FORMULA',
-          content: text,
-          indent: 0,
-          modified: new Date().toISOString()
-        });
-
-        const result = await checkFormulas({
-          id: block.id,
-          type: 'FORMULA',
-          content: text,
-          indent: 0,
-          modified: new Date().toISOString()
-        });
-
+        const result = await checkFormulasInline(text);
         console.log('DeepSeek result:', result);
 
         if (result.corrected) {
