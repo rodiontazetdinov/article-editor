@@ -11,6 +11,7 @@ export interface ArticleBlockBase {
   align?: TTextAlign;
   textCase?: TTextCase;
   $new?: boolean;
+  modified?: string;
 }
 
 export interface ITextBlock extends ArticleBlockBase {

@@ -27,8 +27,8 @@ function convertBlocks(blocks: TArticleBlock[]): DocumentResponse['blocks'] {
         const imageBlock = block as IImageBlock;
         return {
           type: block.type,
-          content: imageBlock.src || imageBlock.images[0] || '',
-          images: imageBlock.images || [],
+          content: imageBlock.src || (imageBlock.images?.[0] ?? ''),
+          images: imageBlock.images ?? [],
           indent: block.indent,
           variant: imageBlock.variant || '1'
         };
@@ -191,9 +191,12 @@ async function parseJSONFile(file: File): Promise<DocumentResponse> {
 
     return {
       type: block.type,
-      content: block.content || '',
-      indent: typeof block.indent === 'number' ? block.indent : 0,
-      originalHTML: block.originalHTML // Сохраняем оригинальный HTML если есть
+      content: block.type === 'H1' || block.type === 'H2' || block.type === 'H3' || block.type === 'P' || block.type === 'CAPTION' 
+        ? ('originalHTML' in block ? block.originalHTML : block.content)
+        : block.content,
+      isInline: block.type === 'FORMULA' ? ('inline' in block ? block.inline : false) : undefined,
+      listType: block.type === 'P' ? block.listType : undefined,
+      indent: block.indent || 0
     };
   });
 
@@ -202,7 +205,7 @@ async function parseJSONFile(file: File): Promise<DocumentResponse> {
     if (block.type === 'IMAGE' && 'src' in block) {
       return {
         type: block.type,
-        content: block.src,
+        content: block.src || '',
         images: block.images || [],
         indent: block.indent || 0
       };
@@ -210,13 +213,15 @@ async function parseJSONFile(file: File): Promise<DocumentResponse> {
     if ('content' in block) {
       return {
         type: block.type,
-        content: block.originalHTML || block.content,
+        content: block.type === 'H1' || block.type === 'H2' || block.type === 'H3' || block.type === 'P' || block.type === 'CAPTION'
+          ? (block as ITextBlock).originalHTML || block.content
+          : block.content,
         isInline: block.type === 'FORMULA' ? ('inline' in block ? block.inline : false) : undefined,
         listType: block.type === 'P' ? block.listType : undefined,
         indent: block.indent || 0
       };
     }
-    throw new Error(`Некорректный формат блока после очистки: ${block.type}`);
+    throw new Error(`Некорректный формат блока после очистки: ${(block as any).type ?? 'unknown'}`);
   });
   
   return {

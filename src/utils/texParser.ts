@@ -191,7 +191,6 @@ export class TexDocumentParser {
               type: 'FORMULA',
               content: mathBlock.content,
               inline: false,
-              source: 'latex',
               indent: 0,
               modified: new Date().toISOString(),
               id: `formula-${blocks.length}`

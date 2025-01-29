@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import type { IArticle, TArticleBlock, ITextBlock, IFormulaBlock, IImageBlock, IRenderBlock, TBlockType, TTextAlign, TTextCase } from '@/types/article';
+import type { IArticle, TArticleBlock, ITextBlock, IFormulaBlock, IImageBlock, IRenderBlock, TBlockType, TTextAlign, TTextCase, ArticleBlockBase } from '@/types/article';
 import { nanoid } from 'nanoid';
 import { TextBlock } from './../TextBlock/TextBlock';
 import { FormulaBlock } from '../blocks/FormulaBlock';
@@ -13,7 +13,7 @@ import { JsonPreview } from '../JsonPreview/JsonPreview';
 import { ArticlePreview } from '../ArticlePreview/ArticlePreview';
 import { MdPreview, MdClose, MdArticle } from 'react-icons/md';
 import { ImportDocument } from '../ImportDocument/ImportDocument';
-import { Formula } from '../Formula/Formula';
+import { FormulaDisplay } from '../Formula/FormulaDisplay';
 import {
   DndContext,
   closestCenter,
@@ -87,8 +87,14 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
       future: []
     }));
     setBlocks(newBlocks);
-    onChange?.({ blocks: newBlocks });
-  }, [blocks, onChange]);
+    onChange?.({
+      id: initialData?.id || 'draft',
+      title: initialData?.title || 'Untitled',
+      blocks: newBlocks,
+      createdAt: initialData?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }, [blocks, onChange, initialData]);
 
   const handleUndo = () => {
     if (history.past.length === 0) return;
@@ -134,9 +140,9 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     } else if (type === 'FORMULA') {
       return { ...baseBlock, type, source: 'latex', content: '' } as IFormulaBlock;
     } else if (type === 'IMAGE') {
-      return { ...baseBlock, type, variant: '1', images: [], src: '' } as IImageBlock;
+      return { ...baseBlock, type, variant: '1', images: [], src: '', content: '' } as IImageBlock;
     } else {
-      return { ...baseBlock, type } as IRenderBlock;
+      return { ...baseBlock, type, content: '' } as TArticleBlock;
     }
   };
 
@@ -234,7 +240,13 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
         const newBlocks = arrayMove(items, oldIndex, newIndex);
-        onChange?.({ blocks: newBlocks });
+        onChange?.({
+          id: initialData?.id || 'draft',
+          title: initialData?.title || 'Untitled',
+          blocks: newBlocks,
+          createdAt: initialData?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
         return newBlocks;
       });
     }
@@ -269,10 +281,10 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
         if ('source' in block && 'content' in block) {
           return (
             <div className="my-4">
-              <Formula
-                source={block.source}
+              <FormulaDisplay
+                source={typeof block.source === 'string' ? block.source : undefined}
                 content={block.content}
-                reference={block.ref}
+                reference={'ref' in block && typeof block.ref === 'string' ? block.ref : undefined}
               />
             </div>
           );
@@ -311,7 +323,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
 
     handleBlockUpdate(block.id, {
       align: 'left',
-      textCase: 'normal'
+      textCase: 'none'
     });
   };
 
@@ -320,13 +332,20 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     if (!block || !('content' in block)) return;
 
     if (block.type === 'H1' || block.type === 'H2' || block.type === 'H3' || block.type === 'P' || block.type === 'CAPTION') {
-      if (block.listType === type) {
+      const listTypeMap = {
+        bullet: 'unordered',
+        number: 'ordered'
+      } as const;
+      
+      const mappedType = listTypeMap[type];
+      
+      if (block.listType === mappedType) {
         handleBlockUpdate(block.id, {
           listType: undefined
         });
       } else {
         handleBlockUpdate(block.id, {
-          listType: type
+          listType: mappedType
         });
       }
     }

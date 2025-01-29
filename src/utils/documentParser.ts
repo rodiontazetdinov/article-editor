@@ -1,7 +1,8 @@
 import { MathMLToLaTeX } from 'mathml-to-latex';
 import mammoth from 'mammoth-plus';
-import { TArticleBlock } from '@/types/article';
+import { TArticleBlock, IImageBlock, ITextBlock, IFormulaBlock } from '@/types/article';
 import { convertMathMLToLaTeX } from './mathMLParser';
+import { generateId } from '@/utils/helpers';
 
 const mammothOptions = {
   styleMap: [
@@ -73,6 +74,7 @@ async function htmlToBlocks(html: string) {
             variant: '1',
             images: [],
             src: imgElement.src,
+            content: '',
             indent: 0,
             modified: new Date().toISOString(),
             id: `img-${i}`
@@ -113,6 +115,7 @@ async function htmlToBlocks(html: string) {
                 variant: '1',
                 images: [],
                 src: img.src,
+                content: '',
                 indent: 0,
                 modified: new Date().toISOString(),
                 id: `img-${i}-${j}`
@@ -174,12 +177,11 @@ async function htmlToBlocks(html: string) {
                   if (formula) {
                     blocks.push({
                       type: 'FORMULA',
-                      source: 'latex',
                       content: formula,
                       inline: false,
                       indent: 0,
                       modified: new Date().toISOString(),
-                      id: `formula-${i}-${blocks.length}`
+                      id: generateId()
                     });
                   }
                 }
