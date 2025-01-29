@@ -168,7 +168,7 @@ export const ArticlePreview = ({ blocks }: ArticlePreviewProps) => {
             key={block.id} 
             className={textBlock.align ? `text-${textBlock.align}` : ''}
             style={{ 
-              paddingLeft: `${block.indent * 2}rem`,
+              paddingLeft: `${(block.indent ?? 0) * 2}rem`,
               transition: 'padding-left 0.2s ease-in-out'
             }}
           >

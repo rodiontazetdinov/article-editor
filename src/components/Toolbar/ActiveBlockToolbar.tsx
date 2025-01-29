@@ -11,6 +11,7 @@ interface ActiveBlockToolbarProps {
   onClearFormat: () => void;
   onListClick: (type: 'bullet' | 'number') => void;
   onFormulaClick: () => void;
+  onDeepSeekConvert: () => void;
   onIndentChange: (direction: 'left' | 'right') => void;
   canIndentLeft: boolean;
   canIndentRight: boolean;

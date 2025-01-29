@@ -12,7 +12,24 @@ export const FormulaBlock = ({ block, onUpdate }: FormulaBlockProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onUpdate({ content: e.target.value });
+    const newContent = e.target.value;
+    const previousChanges = block.changes || [];
+    
+    // Если есть предыдущий контент, добавляем изменение
+    if (block.content && block.content !== newContent) {
+      const newChange = {
+        position: 0, // Позиция всегда 0 для формул, так как они обрабатываются целиком
+        before: block.content,
+        after: newContent
+      };
+      
+      onUpdate({ 
+        content: newContent,
+        changes: [...previousChanges, newChange]
+      });
+    } else {
+      onUpdate({ content: newContent });
+    }
   };
 
   // Предварительная обработка LaTeX формулы

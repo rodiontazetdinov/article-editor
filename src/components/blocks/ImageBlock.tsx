@@ -12,9 +12,12 @@ export const ImageBlock = ({ block, onUpdate }: ImageBlockProps) => {
     if (file) {
       // В реальном приложении здесь будет загрузка на сервер
       const fakeUrl = URL.createObjectURL(file);
-      onUpdate({ src: fakeUrl });
+      onUpdate({ src: fakeUrl, content: fakeUrl });
     }
   };
+
+  // Используем src или content для отображения изображения
+  const imageUrl = block.src || block.content || '';
 
   return (
     <div className="w-full space-y-2">
@@ -24,10 +27,10 @@ export const ImageBlock = ({ block, onUpdate }: ImageBlockProps) => {
         onChange={handleFileChange}
         className="w-full p-2"
       />
-      {block.src && (
+      {imageUrl && (
         <div className="relative w-full h-[300px]">
           <Image
-            src={block.src}
+            src={imageUrl}
             alt="Uploaded image"
             fill
             className="object-contain"

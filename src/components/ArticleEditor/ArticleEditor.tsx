@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import type { IArticle, TArticleBlock, ITextBlock, IFormulaBlock, IImageBlock, IRenderBlock, TBlockType, TTextAlign, TTextCase } from '@/types/article';
+import type { IArticle, TArticleBlock, ITextBlock, IFormulaBlock, IImageBlock, IRenderBlock, TBlockType, TTextAlign, TTextCase, ArticleBlockBase } from '@/types/article';
 import { nanoid } from 'nanoid';
 import { TextBlock } from './../TextBlock/TextBlock';
 import { FormulaBlock } from '../blocks/FormulaBlock';
@@ -13,7 +13,7 @@ import { JsonPreview } from '../JsonPreview/JsonPreview';
 import { ArticlePreview } from '../ArticlePreview/ArticlePreview';
 import { MdPreview, MdClose, MdArticle } from 'react-icons/md';
 import { ImportDocument } from '../ImportDocument/ImportDocument';
-import { Formula } from '../Formula/Formula';
+import { FormulaDisplay } from '../Formula/FormulaDisplay';
 import {
   DndContext,
   closestCenter,
@@ -31,6 +31,7 @@ import {
 } from '@dnd-kit/sortable';
 import { SortableBlock } from '../blocks/SortableBlock';
 import { ActiveBlockToolbar } from '../Toolbar/ActiveBlockToolbar';
+import { checkFormulas, checkFormulasInline } from '@/api/deepseek';
 
 interface ArticleEditorProps {
   initialData?: IArticle;
@@ -64,6 +65,13 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     superscript: false
   });
   const [showPreview, setShowPreview] = useState(false);
+  const [selection, setSelection] = useState<{
+    blockId: string;
+    text: string;
+    startOffset: number;
+    endOffset: number;
+  } | null>(null);
+  const [isConverting, setIsConverting] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -79,8 +87,14 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
       future: []
     }));
     setBlocks(newBlocks);
-    onChange?.({ blocks: newBlocks });
-  }, [blocks, onChange]);
+    onChange?.({
+      id: initialData?.id || 'draft',
+      title: initialData?.title || 'Untitled',
+      blocks: newBlocks,
+      createdAt: initialData?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }, [blocks, onChange, initialData]);
 
   const handleUndo = () => {
     if (history.past.length === 0) return;
@@ -126,9 +140,9 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     } else if (type === 'FORMULA') {
       return { ...baseBlock, type, source: 'latex', content: '' } as IFormulaBlock;
     } else if (type === 'IMAGE') {
-      return { ...baseBlock, type, variant: '1', images: [], src: '' } as IImageBlock;
+      return { ...baseBlock, type, variant: '1', images: [], src: '', content: '' } as IImageBlock;
     } else {
-      return { ...baseBlock, type } as IRenderBlock;
+      return { ...baseBlock, type, content: '' } as TArticleBlock;
     }
   };
 
@@ -152,13 +166,34 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     setFocusBlockId(newBlock.id);
   };
 
-  const updateBlock = (id: string, updates: Partial<TArticleBlock>) => {
-    const newBlocks = blocks.map(block => {
-      if (block.id !== id) return block;
-      return { ...block, ...updates, modified: new Date().toISOString() };
+  const handleBlockUpdate = useCallback((blockId: string, updates: Partial<TArticleBlock>) => {
+    console.log('Block update:', { blockId, updates });
+    setBlocks(prevBlocks => {
+      return prevBlocks.map(block => {
+        if (block.id === blockId) {
+          // Если у блока уже есть changes, сохраняем их
+          const existingChanges = 'changes' in block ? block.changes || [] : [];
+          const newChanges = 'changes' in updates ? updates.changes || [] : [];
+          
+          const updatedBlock = {
+            ...block,
+            ...updates,
+            // Объединяем существующие и новые изменения
+            changes: [...existingChanges, ...newChanges]
+          };
+          console.log('Updated block:', updatedBlock);
+          return updatedBlock;
+        }
+        return block;
+      });
     });
-    updateHistory(newBlocks);
-  };
+  }, []);
+
+  const handleBlockUpdateWrapper = useCallback((blockId: string) => {
+    return (updates: Partial<TArticleBlock>) => {
+      handleBlockUpdate(blockId, updates);
+    };
+  }, [handleBlockUpdate]);
 
   const deleteBlock = (id: string) => {
     const newBlocks = blocks.filter(block => block.id !== id);
@@ -167,19 +202,19 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
 
   const handleBlockTypeChange = (type: TBlockType) => {
     if (!selectedBlockId) return;
-    updateBlock(selectedBlockId, { type });
+    handleBlockUpdate(selectedBlockId, { type });
   };
 
   const handleTextAlignChange = (align: TTextAlign) => {
     if (!selectedBlockId) return;
-    updateBlock(selectedBlockId, { align });
+    handleBlockUpdate(selectedBlockId, { align });
   };
 
   const handleTextCaseChange = (textCase: TTextCase) => {
     if (!selectedBlockId) return;
     const block = blocks.find(b => b.id === selectedBlockId);
     if (block && 'content' in block) {
-      updateBlock(selectedBlockId, { textCase });
+      handleBlockUpdate(selectedBlockId, { textCase });
     }
   };
 
@@ -188,22 +223,11 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
   };
 
   const handleImport = (importedBlocks: TArticleBlock[]) => {
-    const processedBlocks = importedBlocks.map(block => {
-      if (block.type === 'FORMULA') {
-        return {
-          ...block,
-          id: nanoid(10),
-          modified: new Date().toISOString(),
-          indent: 0,
-        };
-      }
-      return {
-        ...block,
-        id: nanoid(10),
-        modified: new Date().toISOString(),
-        indent: 0,
-      };
-    });
+    const processedBlocks = importedBlocks.map(block => ({
+      ...block,
+      id: nanoid(10),
+      modified: new Date().toISOString(),
+    }));
     
     updateHistory([...blocks, ...processedBlocks]);
   };
@@ -216,7 +240,13 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
         const newBlocks = arrayMove(items, oldIndex, newIndex);
-        onChange?.({ blocks: newBlocks });
+        onChange?.({
+          id: initialData?.id || 'draft',
+          title: initialData?.title || 'Untitled',
+          blocks: newBlocks,
+          createdAt: initialData?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
         return newBlocks;
       });
     }
@@ -233,12 +263,16 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
           return (
             <TextBlock 
               block={block as ITextBlock} 
-              onUpdate={(updates) => updateBlock(block.id, updates)}
+              onUpdate={(updates) => handleBlockUpdate(block.id, updates)}
               onDelete={() => deleteBlock(block.id)}
               onAdd={(type) => addBlock(type, block.id)}
               activeFormats={selectedBlockId === block.id ? activeFormats : undefined}
               onActiveFormatsChange={handleActiveFormatsChange}
               onEnterPress={() => addBlock('P', block.id)}
+              onSelect={(sel) => setSelection({
+                blockId: block.id,
+                ...sel
+              })}
             />
           );
         }
@@ -247,18 +281,18 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
         if ('source' in block && 'content' in block) {
           return (
             <div className="my-4">
-              <Formula
-                source={block.source}
+              <FormulaDisplay
+                source={typeof block.source === 'string' ? block.source : undefined}
                 content={block.content}
-                reference={block.ref}
+                reference={'ref' in block && typeof block.ref === 'string' ? block.ref : undefined}
               />
             </div>
           );
         }
-        return <FormulaBlock block={block as IFormulaBlock} onUpdate={(updates) => updateBlock(block.id, updates)} />;
+        return <FormulaBlock block={block as IFormulaBlock} onUpdate={(updates) => handleBlockUpdate(block.id, updates)} />;
       case 'IMAGE':
         if ('variant' in block && 'images' in block && 'src' in block) {
-          return <ImageBlock block={block as IImageBlock} onUpdate={(updates) => updateBlock(block.id, updates)} />;
+          return <ImageBlock block={block as IImageBlock} onUpdate={(updates) => handleBlockUpdate(block.id, updates)} />;
         }
         return null;
       default:
@@ -287,9 +321,9 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
       superscript: false
     });
 
-    updateBlock(block.id, {
+    handleBlockUpdate(block.id, {
       align: 'left',
-      textCase: 'normal'
+      textCase: 'none'
     });
   };
 
@@ -298,61 +332,136 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     if (!block || !('content' in block)) return;
 
     if (block.type === 'H1' || block.type === 'H2' || block.type === 'H3' || block.type === 'P' || block.type === 'CAPTION') {
-      if (block.listType === type) {
-        updateBlock(block.id, {
+      const listTypeMap = {
+        bullet: 'unordered',
+        number: 'ordered'
+      } as const;
+      
+      const mappedType = listTypeMap[type];
+      
+      if (block.listType === mappedType) {
+        handleBlockUpdate(block.id, {
           listType: undefined
         });
       } else {
-        updateBlock(block.id, {
-          listType: type
+        handleBlockUpdate(block.id, {
+          listType: mappedType
         });
       }
     }
   };
 
-  const handleFormulaClick = () => {
+  const handleFormulaClick = async () => {
+    console.log('Formula button clicked');
     const block = blocks.find(b => b.id === selectedBlockId);
-    if (!block || !('content' in block)) return;
-
-    if (block.type === 'H1' || block.type === 'H2' || block.type === 'H3' || block.type === 'P' || block.type === 'CAPTION') {
-      const editorElement = document.querySelector(`[data-block-id="${selectedBlockId}"] .ProseMirror`);
-      const editor = (editorElement as any)?.__editor;
-      
-      if (editor) {
-        const { from, to } = editor.state.selection;
-        const selectedText = editor.state.doc.textBetween(from, to);
-        
-        if (selectedText) {
-          // Если есть выделенный текст, конвертируем его в формулу
-          editor.chain().focus().setFormula(selectedText).run();
-        } else {
-          // Если нет выделенного текста, создаем пустую формулу
-          editor.chain().focus().setFormula('').run();
-        }
-        return;
-      }
+    console.log('Selected block:', block);
+    if (!block || !('content' in block)) {
+      console.log('No valid block found');
+      return;
     }
 
-    // Если это не текстовый блок или нет выделения, создаем новый блок формулы
-    const newBlock: TArticleBlock = {
-      id: nanoid(10),
-      type: 'FORMULA',
-      source: 'latex',
-      content: '',
-      indent: 0,
-      modified: new Date().toISOString(),
-      $new: true
-    };
+    const editorContainer = document.querySelector(`[data-block-id="${selectedBlockId}"]`);
+    console.log('Editor container:', editorContainer);
+    
+    // Получаем инстанс редактора через наше свойство
+    const editor = (editorContainer as any)?.__tiptapEditor;
+    console.log('Editor instance:', editor);
+    
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      const text = editor.state.doc.textBetween(from, to);
+      console.log('Selected text for formula:', text);
+      
+      if (!text) {
+        console.log('No text selected');
+        return;
+      }
+      
+      try {
+        console.log('Sending to DeepSeek:', text);
+        const result = await checkFormulasInline(text);
+        console.log('DeepSeek result:', result);
 
-    const blockIndex = blocks.findIndex(b => b.id === selectedBlockId);
-    const newBlocks = [
-      ...blocks.slice(0, blockIndex + 1),
-      newBlock,
-      ...blocks.slice(blockIndex + 1)
-    ];
+        if (result.corrected) {
+          console.log('Inserting corrected content:', result.corrected);
+          editor
+            .chain()
+            .focus()
+            .insertContent(result.corrected)
+            .run();
 
-    updateHistory(newBlocks);
-    setSelectedBlockId(newBlock.id);
+          console.log('Updating block with changes:', result.changes);
+          handleBlockUpdate(block.id, { 
+            changes: result.changes
+          });
+        } else {
+          console.log('No corrected content in result');
+        }
+      } catch (error) {
+        console.error('DeepSeek error:', error);
+      }
+    }
+  };
+
+  const handleDeepSeekConvert = async () => {
+    console.log('DeepSeek button clicked');
+    const block = blocks.find(b => b.id === selectedBlockId);
+    console.log('Selected block:', block);
+    if (!block || !('content' in block)) {
+      console.log('No valid block found');
+      return;
+    }
+
+    const editorContainer = document.querySelector(`[data-block-id="${selectedBlockId}"]`);
+    console.log('Editor container:', editorContainer);
+    
+    // Получаем инстанс редактора через наше свойство
+    const editor = (editorContainer as any)?.__tiptapEditor;
+    console.log('Editor instance:', editor);
+    console.log('Available commands:', editor?.commands);
+    
+    if (editor && !isConverting) {
+      const { from, to } = editor.state.selection;
+      const text = editor.state.doc.textBetween(from, to);
+      console.log('Selected text for DeepSeek:', text);
+      
+      if (!text) {
+        console.log('No text selected');
+        return;
+      }
+      
+      setIsConverting(true);
+      try {
+        console.log('Sending to DeepSeek:', text);
+        const result = await checkFormulasInline(text);
+        console.log('DeepSeek result:', result);
+
+        if (result.corrected) {
+          console.log('Inserting corrected content:', result.corrected);
+          editor
+            .chain()
+            .focus()
+            .insertContent(result.corrected)
+            .run();
+
+          console.log('Updating block with changes:', result.changes);
+          handleBlockUpdate(block.id, { 
+            changes: result.changes
+          });
+        } else {
+          console.log('No corrected content in result');
+        }
+      } catch (error) {
+        console.error('DeepSeek error:', error);
+      } finally {
+        setIsConverting(false);
+      }
+    } else {
+      console.log('Editor not ready or already converting:', { 
+        editorExists: !!editor, 
+        isConverting 
+      });
+    }
   };
 
   const handleIndentChange = (direction: 'left' | 'right') => {
@@ -369,7 +478,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
     }
 
     if (newIndent !== currentIndent) {
-      updateBlock(block.id, { indent: newIndent });
+      handleBlockUpdate(block.id, { indent: newIndent });
     }
   };
 
@@ -384,6 +493,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
         onClearFormat={handleClearFormat}
         onListClick={handleListClick}
         onFormulaClick={handleFormulaClick}
+        onDeepSeekConvert={handleDeepSeekConvert}
         onIndentChange={handleIndentChange}
         canIndentLeft={selectedBlockId ? (blocks.find(b => b.id === selectedBlockId)?.indent || 0) > 0 : false}
         canIndentRight={selectedBlockId ? (blocks.find(b => b.id === selectedBlockId)?.indent || 0) < 4 : false}
@@ -444,7 +554,7 @@ export const ArticleEditor = ({ initialData, onChange }: ArticleEditorProps) => 
                       block={block}
                       isSelected={selectedBlockId === block.id}
                       onSelect={() => setSelectedBlockId(block.id)}
-                      onUpdate={(updates) => updateBlock(block.id, updates)}
+                      onUpdate={handleBlockUpdateWrapper(block.id)}
                       onDelete={() => deleteBlock(block.id)}
                       onAdd={(type) => addBlock(type, block.id)}
                       activeFormats={selectedBlockId === block.id ? activeFormats : undefined}
